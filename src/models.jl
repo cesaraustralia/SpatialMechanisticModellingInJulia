@@ -1,8 +1,9 @@
-
-
 #### Simple Growth Model #####################
 
-using GrowthMaps, CUDA, Plots, Unitful, GeoData, HDF5, Dates
+using GrowthMaps, CUDA, Plots, Unitful, GeoData, HDF5, Dates, DynamicGridsInteract, DynamicGrids
+using DynamicGrids: auxval
+const DG = DynamicGrids
+using GeoData: Between
 CUDA.allowscalar(false)
 
 # Weird: Define julia object to hold parameters to for the simple growth model 
@@ -64,7 +65,7 @@ growth = LogisticGrowthMap{:H,:H}(
 )
 
 #### Host dispersal model #####################
-λ = 0.125f0
+λ = Param(0.125f0; bounds=(0.01, 0.3))
 radius = 1
 hood = DispersalKernel{radius}(; formulation=ExponentialKernel(λ), cellsize=1.0f0)
 localdisp = InwardsPopulationDispersal{:H,:H}(hood)
@@ -72,7 +73,7 @@ localdisp = InwardsPopulationDispersal{:H,:H}(hood)
 # Output 
 hostpop = zero(growthrates1[Ti(1)])
 sydney = Lat(Near(-33)), Lon(Between(150.0, 151.0))
-cairns = Lat(Near(-17)), Lon(Between(145.0, 146.0))
+cairns = Lat(Between(-16, -19)), Lon(Between(134.0, 147.0))
 hostpop[cairns...] .= carrycap
 
 tspan = DateTime(2017, 1):Day(7):DateTime(2030, 1)
@@ -126,16 +127,12 @@ sim!(output, (wind, growth, viewer))
 sim!(output, (wind, localdisp, growth, viewer))
 
 
-
 #### Host/Parasite growth model #####################
-using DynamicGrids
-
-struct HostParasiteGrowth{R,W,M,P,Hs,Hh,A} <: CellRule{R,W}
+struct HostParasiteGrowth{R,W,M,P,Hs,Hh} <: CellRule{R,W}
     γ::M
     ρ::P
     Hsat::Hs
     Hhalf::Hh
-    auxtimeindex::A
 end
 
 hollingII(H, β, h) = β * H / (1 + h * β * H)
@@ -145,8 +142,8 @@ function DynamicGrids.applyrule(data, rule::HostParasiteGrowth, (H, P), index)
     # Parameters
     γ = rule.γ; ρ = rule.ρ; Hsat = rule.Hsat; Hhalf = rule.Hhalf
     # Growth rates for this cell
-    rH = Dispersal.auxval(data, :rH, index..., rule.auxtimeindex)
-    rP = Dispersal.auxval(data, :rP, index..., rule.auxtimeindex)
+    rH = auxval(data, :rH, index...)
+    rP = auxval(data, :rP, index...)
     # Equation
     h = ρ * rP
     β = encounter_rate(Hsat, Hhalf, h)
@@ -157,23 +154,21 @@ function DynamicGrids.applyrule(data, rule::HostParasiteGrowth, (H, P), index)
     H + dHdt, P + dPdt
 end
 
-function DynamicGrids.precalcrule(rule::HostParasiteGrowth, data)
-    Dispersal.precalc_auxtimeindex(aux(data, :rH), rule, data)
-end
-
-γ = 0.024; ρ = 63.8; Hsat=1e7; Hhalf=1e6
-host_para_growth = HostParasiteGrowth{Tuple{:H,:P},Tuple{:H,:P}}(γ, ρ, Hsat, Hhalf, 1)
+γ = Param(0.024; bounds=(0.01, 0.5)) 
+ρ = Param(63.8; bounds=(0.0, 100.0)) 
+Hsat = Param(1e7; bounds=(0.0, 1e10)) 
+Hhalf = Param(1e6; bounds=(0.0, 1e10))
+host_para_growth = HostParasiteGrowth{Tuple{:H,:P},Tuple{:H,:P}}(γ, ρ, Hsat, Hhalf)
 λ = 0.05
 radius = 1
 para_hood = DispersalKernel{radius}(; formulation=ExponentialKernel(λ))
 para_localdisp = InwardsPopulationDispersal{:P,:P}(para_hood)
 parapop = (a -> (r = rand(Float32); r < 0.0001 ? carrycap : 0.0f0)).(hostpop)
-using DynamicGridsInteract
-ruleset = Ruleset(wind, localdisp, para_localdisp, host_para_growth)
-output = ElectronOutput((H=hostpop, P=parapop); 
+ruleset = Ruleset(wind, host_para_growth)
+output = GtkOutput((H=hostpop, P=parapop); 
     filename="sim.gif", 
+    ruleset=ruleset,
     aux=(; rH=growthrates1, rP=growthrates1),
-    tickfontsize=7, 
     mask=parent(mask),
     tspan=tspan, 
     fps=10,
@@ -181,4 +176,5 @@ output = ElectronOutput((H=hostpop, P=parapop);
     maxval=(carrycap, carrycap),
     scheme=(ColorSchemes.autumn, ColorSchemes.autumn),
 )
-# sim!(output, wind, localdisp, para_localdisp, host_para_growth)
+display(output)
+sim!(output, ruleset)
