@@ -4,7 +4,7 @@ using BenchmarkTools
 
 # Wind dispersal model For GPU randomisation
 
-# As we don't have `rand()` inside the kernel, we have to calulate it 
+# As we don't have `rand()` inside the kernel, we have to calulate it
 # in another grid from outside a kernel, using a `Grid` rul.e
 # We want rand to be padded with a neighborhood so we can sample
 # extra values.
@@ -50,15 +50,18 @@ end
 # @btime sim!($output, $wind; proc=ThreadedCPU());
 # @btime sim!($output, $randomgrid, $gpu_wind; proc=CuGPU());
 
+procs = Dict("single"=>SingleCPU(), "threaded"=>ThreadedCPU())
+opts = Dict("noopt"=>NoOpt(), "sparseopt"=>SparseOpt())
+sizes = (100, 200, 400)#, 1000, 2000)
 
-function setupsim(rules; 
-    tspan=DateTime(2020, 1, 1):Day(1):DateTime(2020, 4, 10), 
-    size=(100, 100), opt=NoOpt(), proc=SingleCPU(), 
+function setupsim(rules;
+    tspan=DateTime(2020, 1, 1):Day(1):DateTime(2020, 4, 10),
+    size=(100, 100), opt=NoOpt(), proc=SingleCPU(),
     growthmin=-5.0, growthmax=0.2
 )
     growthrates = rand(size...) .* (growthmax - growthmin) .- growthmin
     init = (; H=zeros(size...))
-    o = ResultOutput(init; 
+    o = ResultOutput(init;
         aux=(; rH=growthrates),
         mask=parent(mask),
         tspan=tspan,
@@ -73,37 +76,40 @@ function bench(rules)
     # procs = Dict("gpu"=>CuGPU(), "single"=>SingleCPU(), "threaded"=>ThreadedCPU())
     procs = Dict("single"=>SingleCPU(), "threaded"=>ThreadedCPU())
     opts = Dict("noopt"=>NoOpt(), "sparseopt"=>SparseOpt())
-    sizes = (100, 200, 400)#, 1000, 2000)
+    sizes = (100, 200, 300, 400)#, 1000, 2000)
     suite = BenchmarkGroup()
     suite[:noopt] = BenchmarkGroup()
     suite[:sparseopt] = BenchmarkGroup()
     for opt in keys(opts)
         suite[opt] = BenchmarkGroup(["proc", "size"])
         for proc in keys(procs), s in sizes
-            suite[opt][proc, s] = @benchmarkable sim!(x[:o], x[:rs]; simdata=x[:sd]) setup=(x = setupsim($rules; size=($s, $s), proc=procs[$proc], opt=opts[$opt]))
+            suite[opt][proc, s] = @benchmarkable sim!(x[:o], x[:rs]; simdata=x[:sd]) setup=(x = setupsim($rules; size=($s, $s), proc=$(procs[proc]), opt=$(opts[opt])))
         end
     end
     results = run(suite, verbose=true)
 end
 function plotbench(b)
-    ps1 = map(keys(procs)) do prockey
+    p1 = plot(; title="SparseOpt")
+    map(Tuple(keys(procs))) do prockey
         times = map(sizes) do s
             minimum(b.data["sparseopt"].data[(prockey, s)].times)
         end
-        plot!(collect(sizes), collect(times) .* 10e-6; label="sparse $prockey")
+        plot(p1, collect(sizes), collect(times) .* 10e-6; label="sparse $prockey")
     end
-    ps2 = map(keys(procs)) do prockey
+    p2 = plot(; title="NoOpt")
+    map(Tuple(keys(procs))) do prockey
         times = map(sizes) do s
             minimum(b.data["noopt"].data[(prockey, s)].times)
         end
-        plot!(collect(sizes), collect(times) .* 10e-6; label=prockey)
+        plot!(p2, collect(sizes), collect(times) .* 10e-6; serieslabel=prockey)
     end
-    plot(ps1..., ps2...; yaxis=:log);
+    plot(p1, p2; yaxis=:log);
 end
+
 rulegroups = (wind=(wind, growth), loc=(localdisp, growth), combined=(localdisp, wind, growth))
 results = map(bench, rulegroups)
-# results[@tagged 500]
-# plotbench(results)
+results[:wind][@tagged 400]
+plotbench(results[:wind])
 
 
 

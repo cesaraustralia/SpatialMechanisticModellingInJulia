@@ -30,7 +30,7 @@ growthplots = plot(p1, p2; layout=(2, 1), link=:x, size=(600, 900))
 # Simulation plots
 init = (; H=hostpop)
 kwargs = (; 
-    aux=(; rH=growthrates1, rP=growthrates1), 
+    aux=(; rH=rH, rP=rP), 
     mask=parent(mask),
     tspan=tspan
 )
@@ -40,6 +40,12 @@ combined_output = ArrayOutput(init; kwargs...)
 sim!(wind_output, wind, growth)
 sim!(localdisp_output, localdisp, growth)
 sim!(combined_output, localdisp, wind, growth)
+
+output = ArrayOutput(init; 
+    aux=(; rH=hH, rP=rH), 
+    mask=boolmask(,
+    tspan=DateTime(2020, 1):Day(7):DateTime(2024, 1)
+)
 
 simplot_opts = (; 
     yguide_position=:right,
