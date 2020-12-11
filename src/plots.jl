@@ -37,9 +37,13 @@ kwargs = (;
 wind_output = ArrayOutput(init; kwargs...)
 localdisp_output = ArrayOutput(init; kwargs...)
 combined_output = ArrayOutput(init; kwargs...)
+init = (; H=copy(hostpop) .= 10000)
+growth_output = ArrayOutput(; kwargs...)
+
 sim!(wind_output, wind, growth)
 sim!(localdisp_output, localdisp, growth)
 sim!(combined_output, localdisp, wind, growth)
+sim!(growth_output, growth)
 
 output = ArrayOutput(init; 
     aux=(; rH=hH, rP=rH), 
@@ -53,17 +57,39 @@ simplot_opts = (;
     clims=(0, carrycap),
     legend=:none, plot_opts...
 )
-p3 = plot(localdisp_output[600][:H]; yguide="Local", simplot_opts..., xtickfontcolor=RGB(1.0))
-p4 = plot(wind_output[600][:H]; yguide="Wind", simplot_opts..., xtickfontcolor=RGB(1.0))
-p5 = plot(combined_output[600][:H]; yguide="Combined", simplot_opts..., xtickfontcolor=RGB(0.5))
+plotti = Ti(DateTime(2025, 1))
+p3 = plot(localdisp_output[plotti][:H]; yguide="Local", simplot_opts..., xtickfontcolor=RGB(1.0))
+p4 = plot(wind_output[plotti][:H]; yguide="Wind", simplot_opts..., xtickfontcolor=RGB(1.0))
+p5 = plot(combined_output[plotti][:H]; yguide="Combined", simplot_opts..., xtickfontcolor=RGB(0.5))
 map(p -> plot!(p, shp; shape_opts...), (p3, p4, p5))
 simplots = plot(p3, p4, p5; layout=(3, 1), size=(600, 900))
 # savefig("output/simplots.png")
+
+locations = (
+    Melbourne=(-37.805896, 144.959527),
+    Mildura=(-34.219504, 142.130864),
+    Coffs_Harbour=(-30.287245, 153.092991),
+    Sydney=(-33.839943, 151.006101),
+    Adelaide=(-34.901608, 138.601547),
+    Port_Augusta=(-32.466201, 137.813850),
+    Devonport=(-41.180545, 146.314887),
+    Hobart=(-42.881742, 147.323879),
+    Brisbane=(-27.436190, 152.990588),
+    Cairns=(-16.937281, 145.747709),
+    Perth=(-31.9505, 115.8605),
+    Geraldton=(-28.778138, 114.615632)
+)
+loc_growthrates = map(locations) do loc
+    map(f -> f[:H][Lat(Near(loc[1])), Lon(Near(loc[2]))], growth_output)
+end
+growthplot = plot(cat(loc_growthrates...); 
+    labels=string.(keys(locations)), xguide="Time", yguide="Population"
+)
 
 init = (H=hostpop, P=parapop)
 host_para_output = ArrayOutput(init; kwargs...)
 sim!(host_para_output, localdisp, wind, host_para_growth)
 
-p6 = plot(host_para_output[300][:H]; yguide="Host-Parasite", simplot_opts..., xtickfontcolor=RGB(1.0))
-p7 = plot(host_para_output[600][:H]; yguide="Host-Parasite", simplot_opts..., xtickfontcolor=RGB(1.0))
-hp_plots = plot(p6, p7; layout=(2, 1), size=(600, 600))
+p7 = plot(host_para_output[300][:H]; yguide="Host-Parasite", simplot_opts..., xtickfontcolor=RGB(1.0))
+p8 = plot(host_para_output[600][:H]; yguide="Host-Parasite", simplot_opts..., xtickfontcolor=RGB(1.0))
+hp_plots = plot(p7, p8; layout=(2, 1), size=(600, 600))

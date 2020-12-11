@@ -9,7 +9,7 @@ function setupsim(rules;
     # init = (; H=rand(Bool, size) .* 100.0f0, rand=rand(Float32, size))
     hostpop .= 100.0f0
     rnge = Base.OneTo.(size) 
-    o = ArrayOutput((; H=parent(hostpop)[rnge...], P=parent(parapop)[rnge...], rand=rand(Float32, size)); 
+    o = ArrayOutput((; H=hostpop[rnge...], P=parapop[rnge...], rand=rand(Float32, size)); 
         aux=(; rH=r_host_aus[rnge..., :], rP=r_para_aus[rnge..., :]), 
         mask=Array(mask)[rnge...],
         tspan=tspan
@@ -44,6 +44,7 @@ output = ArrayOutput((; H=parent(hostpop), P=parent(parapop), rand=rand(Float32,
     mask=Array(mask),
     tspan=tspan
 )
+
 for key in keys(rulegroups), p in values(procs), o in values(opts)
     @show key p o
     @time sim!(output, rulegroups[key]; proc=p)
@@ -100,7 +101,7 @@ hostpop_disag, parapop_disag, r_host_aus_disag, r_para_aus_disag, mask_disag =
 A = set(r_host_aus, Lat=NoIndex(), Lon=NoIndex(), Ti=NoIndex())
 typeof(index(r_host_aus_disag))
 
-output = ArrayOutput((; H=parent(hostpop_disag), P=parent(parapop_disag), rand=rand(Float32, size(hostpop_disag))); 
+output = ArrayOutput((; H=hostpop_disag, P=parapop_disag, rand=rand(Float32, size(hostpop_disag))); 
     aux=(; rH=r_host_aus_disag, rP=r_para_aus_disag), mask=Array(mask_disag), tspan=tspan)
 
 @time sim!(output, growth);

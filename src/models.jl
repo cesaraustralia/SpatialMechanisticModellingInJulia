@@ -1,113 +1,67 @@
-#### Simple Growth Model #####################
+using GeoData, ArchGDAL, Dates
 
-using GrowthMaps, Unitful, GeoData, HDF5, Dates, CUDA, Random, KernelAbstractions
-using GeoData: Between
-CUDA.allowscalar(false)
-
-# Weird: Define julia object to hold parameters to for the simple growth model 
-# a struct with parameters, that inherits from GrowthModel *** more about this
-struct IntrinsicGrowth{Ic,U,If,D} <: GrowthModel
-    intercept::Ic
-    up::U
-    inflection::If
-    down::D
+path = "/home/raf/.julia/dev/Leafminer/output/growthrates/huidobrensis"
+gr_slices = map(readdir(path; join=true)) do path
+    GDALarray(path; mappedcrs=EPSG(4326))[Band(1)] |>
+        a->permutedims(a, (Lat, Lon))
 end
-# And a Growthmaps.rate method to calculate growth for a specific temperature
-# Weird: we are adding a method to a function in the GrowthMaps mackage
-# for the struct we have defined above.
-GrowthMaps.rate(m::IntrinsicGrowth, temp) = 
-    gr(m.intercept, m.up, m.inflection, m.down, temp)
-gr(a, b, c, d, x) = x < c ? a + b*x  : a + b*c - d*(x - c)  
-# Parametrise the struct
-host_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 30u"°C" |> u"K", 0.1u"K^-1")
-para_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 26u"°C" |> u"K", 0.1u"K^-1")
-# Specify the SMAP layer `surface_temp` with units Kelvin
-# TODO: use simplified data in the repo
-host_model = Model(Layer(:surface_temp, u"K", host_growth))
-para_model = Model(Layer(:surface_temp, u"K", para_growth))
-
-# Plot this with scatter, if there is room
-temps = collect(-15.0u"°C":0.1u"K":40.0u"°C")
-
-# Get time series of SMAP files to load
-# days = 1:31 # all
-days = 1 # one day a month
-series = SMAPseries("/home/raf/Data/SMAP/SMAP_L4_SM_gph_v4")[Where(t -> dayofmonth(t) in days)]
-
-
-# Run for 12 months of 2017, on a CUDA GPU
-@time rates = mapgrowth(host_model, para_model;
-    series=series,
-    tspan=DateTime(2017, 1):Month(1):DateTime(2017, 12),
-    arraytype=CuArray, # Run on a CUDA GPU
-)
+growthtimespan = DateTime(2017,1):Month(1):DateTime(2017,12)
+gr = cat(gr_slices...; dims=Ti(growthtimespan))
 aus = Lon(Between(113.3402, 153.9523)), Lat(Between(-43.62234, -10.65125))
-r_host_aus, r_para_aus = map(rates) do gr
-    gr[aus...] |> gr -> replace_missing(gr, 0.0f0) |> gr -> permutedims(gr, (Lat, Lon, Ti))
-end
+rH = gr[aus...] |> gr -> replace_missing(gr, 0.0f0) |> gr -> permutedims(gr, (Lat, Lon, Ti))
+rP = rH
 
-# struct IntrinsicGrowth{Ic,U,If,D} <: GrowthModel
-#     intercept::Ic
-#     up::U
-#     inflection::If
-#     down::D
-# end
-
-# GrowthMaps.rate(m::IntrinsicGrowth, temp) = 
-#     gr(m.intercept, m.up, m.inflection, m.down, temp)
-# gr(a, b, c, d, x) = x < c ? a + b*x  : a + b*c - d*(x - c)  
-# host_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 30u"°C" |> u"K", 0.1u"K^-1")
-# para_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 26u"°C" |> u"K", 0.1u"K^-1")
-
-# host_model = Model(Layer(:surface_temp, u"K", host_growth))
-# para_model = Model(Layer(:surface_temp, u"K", para_growth))
-
-# series = SMAPseries("/home/raf/Data/SMAP/SMAP_L4_SM_gph_v4")
-
-# # Run for 12 months of 2017, on a CUDA GPU
-# @time rates = mapgrowth(host_model, para_model;
-#     series=series,
-#     tspan=DateTime(2017, 1):Month(1):DateTime(2017, 12),
-#     arraytype=CuArray, # Run on a CUDA GPU
-# )
-
-# aus = Lon(Between(113.3402, 153.9523)), Lat(Between(-43.62234, -10.65125))
-# r_host_aus, r_para_aus = map(rates) do gr
-#     gr[aus...] |> gr -> replace_missing(gr, 0.0f0) |> gr -> permutedims(gr, (Lat, Lon, Ti))
-# end
-
-# ------------------
-# Implications, useful for all of SDM modelling as a side effect
 
 # Growth model for the dispersal simulation,
 # using the growth rates we have just generated:
 # Here we use a pre-defined growth model LogisticGrowthMap from Dispersal.jl
 using Dispersal, ColorSchemes, BenchmarkTools, DynamicGridsInteract, DynamicGrids
 const DG = DynamicGrids
-using DynamicGrids: auxval
-import Dispersal: applyrule, aux
+
 carrycap = 1f9
-growth = LogisticGrowth{:H,:H}(
+growth = LogisticGrowth{:H}(
     rate=Aux(:rH),
-    carrycap=carrycap,
+    carrycap=carrycap,#Param(carrycap, bounds=(0.0, 10carrycap)),
     timestep=Day(1),
 )
 
-#### Host dispersal model #####################
-λ = Param(0.125f0; bounds=(0.01, 0.3))
-radius = 1
-hood = DispersalKernel{radius}(; formulation=ExponentialKernel(λ), cellsize=1.0f0)
-localdisp = InwardsDispersal{:H,:H}(hood)
-
 # Output 
-hostpop = zero(r_host_aus[Ti(1)])
-sydney = Lat(Near(-33)), Lon(Between(150.0, 151.0))
-cairns = Lat(Between(-16, -19)), Lon(Between(134.0, 147.0))
-cairns = Lat(Near(-17)), Lon(Near(144.0))
+hostpop = zero(rH[Ti(1)])
+cairns = Lat(Between(-17, -20)), Lon(Between(144.0, 145.0))
 hostpop[cairns...] .= carrycap
+tspan = DateTime(2020, 1):Day(7):DateTime(2044, 1)
+mask = boolmask(rH[Ti(1)])
 
-tspan = DateTime(2020, 1):Day(7):DateTime(2024, 1)
-mask = boolmask(r_host_aus[Ti(1)])
+alleeH = AlleeExtinction{:H}(; minfounders=20.0)
+
+# output = ElectronOutput((H=hostpop, rH=zero(hostpop)); 
+output = GtkOutput((H=hostpop, rH=zero(hostpop)); 
+    ruleset = Ruleset(growth, viewer),
+    filename="sim.gif", 
+    aux=(; rH=rH),
+    mask=parent(mask),
+    tspan=tspan, 
+    store=true,
+    fps=50,
+    minval=(0.0f0, 0.0), 
+    maxval=(carrycap, maximum(rH)),
+    scheme=(ColorSchemes.autumn, ColorSchemes.inferno),
+)
+sim!(output, (growth, viewer)) 
+
+output = ArrayOutput((; H=fill(carrycap, size(hostpop))); 
+    aux=(; rH=rH),
+    mask=mask,
+    tspan=tspan, 
+)
+sim!(output, growth) 
+
+
+#### Host dispersal model #####################
+λ = Param(0.25f0; bounds=(0.01, 0.3))
+r = 1
+hood = DispersalKernel{r}(; formulation=ExponentialKernel(λ), cellsize=1.0f0)
+localdisp = InwardsDispersal{:H}(hood)
 
 
 #=
@@ -119,17 +73,11 @@ that doesn't "just work" on GPU, and needs a different approach
 to the simple method we use here.
 =#
 
-
 ### Wind dispersal model #####################################
-wind = Manual{:H,:H}() do data, I, state
-    # Ignore empty cells
-    state > zero(state) || return nothing
-    # Randomise a dispersal event
-    rand() < 0.01 || return nothing
-    # Randomise a destination
-    spotrange = 20
-    rnge = -spotrange:spotrange
-    jump = (rand(rnge), rand(rnge))
+wind = Manual{:H}() do data, I, state 
+    state > zero(state) || return nothing # Ignore empty cells
+    rand() < 0.01 || return nothing # Randomise a dispersal event
+    jump = (rand(-50:50), rand(-20:20)) # Randomise a destination
     # Make sure the destination is on the grid
     jumpdest, is_inbounds = inbounds(jump .+ I, gridsize(data), RemoveOverflow())
     # Update spotted cell if it's on the grid
@@ -141,14 +89,13 @@ wind = Manual{:H,:H}() do data, I, state
 end
 
 # GPU wind
-randomgrid = Grid{Tuple{},:rand}() do w
-    _rand(parent(w))
+randomgrid = SetGrid{Tuple{},:rand}() do w
+    _rand!(parent(w))
 end
+# _rand!(w::CuArray) = CUDA.rand!(w)
+_rand!(w) = rand!(w)
 
-_rand(w::CuArray) = CUDA.rand!(w)
-_rand(w) = rand!(w)
-
-gpu_wind = SetNeighbors{Tuple{:rand,:H},Tuple{:rand,:H}}() do data, hood, I, rand, H
+gpu_wind = SetNeighbors{Tuple{:rand,:H}}() do data, hood, I, rand, H
     # Ignore empty cells
     H > zero(H) || return nothing
     # Randomise a dispersal event using cell value of rand,
@@ -171,22 +118,21 @@ gpu_wind = SetNeighbors{Tuple{:rand,:H},Tuple{:rand,:H}}() do data, hood, I, ran
     return nothing
 end
 
+using DynamicGridsGtk
+output = GtkOutput((; H=hostpop); 
+    ruleset = Ruleset(wind, localdisp, growth),
+    filename="sim.gif", 
+    aux=(; rH=rH),
+    mask=parent(mask),
+    tspan=tspan, 
+    store=true,
+    fps=50,
+    minval=(0.0f0, 0.0f0, 0.0f0), 
+    maxval=(carrycap, maximum(rH), 1.0f0),
+    scheme=(ColorSchemes.autumn, ColorSchemes.inferno, ColorSchemes.inferno),
+)
 
-# viewer = AuxCopy{:rH}(Aux(:rH))
-# output = ElectronOutput((H=hostpop, P=parapop, rand=zero(hostpop)); 
-#     ruleset = Ruleset(wind, localdisp, growth, viewer),
-#     filename="sim.gif", 
-#     aux=(; rH=r_host_aus),
-#     mask=parent(mask),
-#     tspan=tspan, 
-#     store=true,
-#     fps=50,
-#     minval=(0.0f0, 0.0f0, 0.0f0), 
-#     maxval=(carrycap, maximum(r_host_aus), 1.0f0),
-#     scheme=(ColorSchemes.autumn, ColorSchemes.inferno, ColorSchemes.inferno),
-# )
-
-# sim!(output, (localdisp, growth, viewer));
+sim!(output, (wind, growth));
 
 # DynamicGrids.savegif("localdisp.gif", output)
 # sim!(output, (wind, growth, viewer))
@@ -198,54 +144,84 @@ end
 #### Host/Parasite growth model #####################
 struct HostParasiteGrowth{R,W,M,P,Hs,Hh} <: CellRule{R,W}
     γ::M
-    ρ::P
+    ρₕ::P
     Hsat::Hs
     Hhalf::Hh
 end
 
-hollingII(H, β, h) = β * H / (1 + h * β * H)
-encounter_rate(Hsat, Hhalf, h) = (Hsat - 2Hhalf) / (h * Hsat * Hhalf)
+typeII(H, β, h) = β * H / (1 + h * β * H)
+# encounter_rate(Hsat, Hhalf, h) = (Hsat - 2Hhalf) / (h * Hsat * Hhalf)
+encounter_rate(Hhalf, h) = 1 / (h * Hhalf)
 
-function applyrule(data, rule::HostParasiteGrowth, (H, P), I)
+@inline function DynamicGrids.applyrule(data, rule::HostParasiteGrowth, (H, P), I)
     # Parameters
-    γ = rule.γ; ρ = rule.ρ; Hsat = rule.Hsat; Hhalf = rule.Hhalf
+    γ = rule.γ; Hhalf = rule.Hhalf
     # Growth rates for this cell
-    rH = auxval(data, :rH, I...)
-    rP = auxval(data, :rP, I...)
+    rH = get(data, Aux(:rH), I...)
+    rP = get(data, Aux(:rP), I...)
     # Equation
-    h = ρ * rP
-    β = encounter_rate(Hsat, Hhalf, h)
-    R = hollingII(H, β, h)
-    δ = (rP + γ) / R
+    h = 1 / (2.161057 * exp(9.050459 * rP))
+    β = encounter_rate(Hhalf, h)
+    R = typeII(H, β, h)
+    δ = h * (rP - γ)
     dHdt = rH * H - R * P
-    dPdt = R * δ * P - γ * P
+    dPdt = δ * R * P * rP - γ * P
+    # if H > zero(H)
+        # @show H P rH rP h β R δ dHdt dPdt
+        # println()
+    # end
     H + dHdt, P + dPdt
-    H + H * rH, P + P * rP
 end
+
+sd = DynamicGrids.SimData(output.extent, Ruleset());
+sd = DynamicGrids._updatetime(sd, 1);
+DynamicGrids.applyrule(sd, host_para_growth, (2000000.0, 20000.0), (96, 176))
 
 γ = Param(0.024; bounds=(0.01, 0.5)) 
 ρ = Param(63.8; bounds=(0.0, 100.0)) 
 Hsat = Param(1e7; bounds=(0.0, 1e10)) 
-Hhalf = Param(1e6; bounds=(0.0, 1e10))
+Hhalf = Param(1e2; bounds=(0.0, 1e10))
 host_para_growth = HostParasiteGrowth{Tuple{:H,:P},Tuple{:H,:P}}(γ, ρ, Hsat, Hhalf)
 
-λ = 0.15
-radius = 1
-para_hood = DispersalKernel{radius}(; formulation=ExponentialKernel(λ))
-para_localdisp = InwardsDispersal{:P,:P}(para_hood)
+λ = Param(0.25f0, bounds=(0.0, 0.3))
+r = 1
+para_hood = DispersalKernel{r}(; formulation=ExponentialKernel(λ))
+para_localdisp = InwardsDispersal{:P}(para_hood)
+alleeP = AlleeExtinction{:P}(; minfounders=20.0)
 
-parapop = 10ones(Float32, size(hostpop))#(a -> (r = rand(Float32); r < 0.01 ? carrycap : 0.0f0)).(hostpop)
-ruleset = Ruleset(gpu_wind, randomgrid, localdisp, para_localdisp, host_para_growth; proc=CuGPU())
-output = ElectronOutput((H=hostpop, P=parapop, rand=zero(hostpop)); 
+parapop = (a -> (r = rand(Float32); r < 0.01 ? carrycap : 0.0f0)).(hostpop)
+# # fill!(parapop, 1e8)
+# ruleset = Ruleset(gpu_wind, randomgrid, localdisp, para_localdisp, host_para_growth; proc=CuGPU())
+# ruleset = Ruleset(wind, localdisp, para_localdisp, host_para_growth)
+# # output = ElectronOutput((H=hostpop, P=parapop, rand=zero(hostpop)); 
+# output = GtkOutput((H=hostpop, P=parapop, rand=zero(hostpop)); 
+#     filename="sim.gif", 
+#     ruleset=ruleset,
+#     aux=(; rH=rH, rP=rP),
+#     mask=parent(mask),
+#     tspan=tspan, 
+#     fps=10,
+#     minval=(0.0f0, 0.0f0, 0.0f0), 
+#     maxval=(carrycap, carrycap, 1.0f0),
+#     scheme=(ColorSchemes.autumn, ColorSchemes.autumn, ColorSchemes.autumn),
+# )
+# display(output)
+# sim!(output, ruleset)
+
+
+copy_rH = CopyTo{:rH}(Aux{:rH}())
+# output = ElectronOutput((H=hostpop, P=parapop, rand=zero(hostpop)); 
+using DynamicGridsGtk
+output = GtkOutput((H=hostpop, P=parapop, rH=zero(parapop)); 
     filename="sim.gif", 
-    ruleset=ruleset,
-    aux=(; rH=r_host_aus, rP=r_para_aus),
+    aux=(; rH=rH, rP=rP),
     mask=parent(mask),
-    tspan=tspan, 
-    fps=10,
-    minval=(0.0f0, 0.0f0, 0.0f0), 
-    maxval=(carrycap, carrycap, 1.0f0),
-    scheme=(ColorSchemes.autumn, ColorSchemes.autumn, ColorSchemes.autumn),
+    tspan=tspan,
+    fps=100,
+    store=true,
+    minval=(0.0f0, 0.0f0, 0.f0), 
+    maxval=(carrycap, carrycap, maximum(rH)),
+    scheme=(ColorSchemes.autumn, ColorSchemes.autumn, ColorSchemes.inferno),
 )
-display(output)
-sim!(output, ruleset)
+
+sim!(output, wind, alleeH, alleeP, localdisp, para_localdisp, host_para_growth, copy_rH)
