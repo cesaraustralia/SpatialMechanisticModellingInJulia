@@ -12,9 +12,7 @@ rH = gr[aus...] |> gr -> replace_missing(gr, 0.0f0) |> gr -> permutedims(gr, (La
 rP = rH
 
 
-# Growth model for the dispersal simulation,
-# using the growth rates we have just generated:
-# Here we use a pre-defined growth model LogisticGrowthMap from Dispersal.jl
+### Growth model #####################
 using Dispersal, ColorSchemes, BenchmarkTools, DynamicGridsInteract, DynamicGrids
 const DG = DynamicGrids
 
@@ -64,22 +62,13 @@ hood = DispersalKernel{r}(; formulation=ExponentialKernel(λ), cellsize=1.0f0)
 localdisp = InwardsDispersal{:H}(hood)
 
 
-#=
-This time we define our own model from scratch, 
-using a shorthand model definition style - which acheives brevity 
-with some loss of reusability. Well run this on a CPU,
-as generating random numbers on a GPU is one of the things
-that doesn't "just work" on GPU, and needs a different approach
-to the simple method we use here.
-=#
-
 ### Wind dispersal model #####################################
-wind = Manual{:H}() do data, I, state 
+wind = SetCell{:H}() do data, I, state 
     state > zero(state) || return nothing # Ignore empty cells
     rand() < 0.01 || return nothing # Randomise a dispersal event
-    jump = (rand(-50:50), rand(-20:20)) # Randomise a destination
+    jump = (rand(-20:20), rand(-20:20)) # Randomise a destination
     # Make sure the destination is on the grid
-    jumpdest, is_inbounds = inbounds(jump .+ I, gridsize(data), RemoveOverflow())
+    jumpdest, is_inbounds = inbounds(jump .+ I, data)
     # Update spotted cell if it's on the grid
     if is_inbounds 
         @inbounds add!(data[:H], state / 10, jumpdest...)
@@ -88,13 +77,11 @@ wind = Manual{:H}() do data, I, state
     return nothing
 end
 
-# GPU wind
-randomgrid = SetGrid{Tuple{},:rand}() do w
-    _rand!(parent(w))
-end
-# _rand!(w::CuArray) = CUDA.rand!(w)
-_rand!(w) = rand!(w)
-
+# GPU wind model
+# We can't use `rand` directly inside a GPU kernel, as of Dec 2020.
+# To get around this shortcoming we add a grid to hold random numbers and 
+# generate them from outside a kernel using a `SetGrid` model that calls a function
+# on the entire grid. All the work is still done on the GPU.
 gpu_wind = SetNeighbors{Tuple{:rand,:H}}() do data, hood, I, rand, H
     # Ignore empty cells
     H > zero(H) || return nothing
@@ -118,6 +105,13 @@ gpu_wind = SetNeighbors{Tuple{:rand,:H}}() do data, hood, I, rand, H
     return nothing
 end
 
+_rand!(w::CuArray) = CUDA.rand!(w)
+_rand!(w) = rand!(w)
+
+randomgrid = SetGrid{Tuple{},:rand}() do w
+    _rand!(parent(w))
+end
+
 using DynamicGridsGtk
 output = GtkOutput((; H=hostpop); 
     ruleset = Ruleset(wind, localdisp, growth),
@@ -131,6 +125,7 @@ output = GtkOutput((; H=hostpop);
     maxval=(carrycap, maximum(rH), 1.0f0),
     scheme=(ColorSchemes.autumn, ColorSchemes.inferno, ColorSchemes.inferno),
 )
+
 
 sim!(output, (wind, growth));
 
