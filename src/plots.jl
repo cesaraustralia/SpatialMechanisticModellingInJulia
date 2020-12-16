@@ -6,9 +6,9 @@ using Plots: px
 
 # Plot setup
 shp = Shapefile.Handle("/home/raf/.julia/dev/MethodsPaper/data/ausborder_polyline.shp")
-shape_opts = (lw=1.0, color=RGB(0.3))
+shape_opts = (lw=0.5, color=RGB(0.3))
 plot_opts = (; 
-    bottom_margin=0px, 
+    margin=0px, 
     foreground_color=RGB(0.3),
     tickfontsize=7, 
     title="", 
@@ -37,54 +37,63 @@ kwargs = (;
 wind_output = ArrayOutput(init; kwargs...)
 localdisp_output = ArrayOutput(init; kwargs...)
 combined_output = ArrayOutput(init; kwargs...)
-init = (; H=copy(hostpop) .= 10000)
-growth_output = ArrayOutput(; kwargs...)
+growth_output = ArrayOutput((; H=copy(hostpop) .= 1e7); kwargs...)
 
-sim!(wind_output, wind, growth)
-sim!(localdisp_output, localdisp, growth)
-sim!(combined_output, localdisp, wind, growth)
-sim!(growth_output, growth)
-
-output = ArrayOutput(init; 
-    aux=(; rH=hH, rP=rH), 
-    mask=boolmask(,
-    tspan=DateTime(2020, 1):Day(7):DateTime(2024, 1)
-)
+sim!(wind_output, wind, allee, growth)
+sim!(localdisp_output, localdisp, allee, growth)
+sim!(combined_output, localdisp, wind, allee, growth)
+sim!(growth_output, allee, growth)
 
 simplot_opts = (; 
-    yguide_position=:right,
-    ytickfontcolor=RGB(0.5), 
+    xtickfontcolor=RGB(0.5), 
     clims=(0, carrycap),
+    showaxis=false,
     legend=:none, plot_opts...
 )
-plotti = Ti(DateTime(2025, 1))
-p3 = plot(localdisp_output[plotti][:H]; yguide="Local", simplot_opts..., xtickfontcolor=RGB(1.0))
-p4 = plot(wind_output[plotti][:H]; yguide="Wind", simplot_opts..., xtickfontcolor=RGB(1.0))
-p5 = plot(combined_output[plotti][:H]; yguide="Combined", simplot_opts..., xtickfontcolor=RGB(0.5))
+plot_ti = Ti(Near(DateTime(2023, 1)))
+p3 = plot(localdisp_output[plot_ti][:H]; xguide="Local", simplot_opts..., ytickfontcolor=RGB(0.5))
+p4 = plot(wind_output[plot_ti][:H]; xguide="Wind", simplot_opts..., ytickfontcolor=RGB(1.0))
+p5 = plot(combined_output[plot_ti][:H]; xguide="Combined", simplot_opts..., ytickfontcolor=RGB(1.0))
 map(p -> plot!(p, shp; shape_opts...), (p3, p4, p5))
-simplots = plot(p3, p4, p5; layout=(3, 1), size=(600, 900))
-# savefig("output/simplots.png")
+simplots = plot(p3, p4, p5; layout=(1, 3), size=(1000, 400))
+savefig("output/simplots.png")
 
+# Location line plot
 locations = (
-    Melbourne=(-37.805896, 144.959527),
-    Mildura=(-34.219504, 142.130864),
-    Coffs_Harbour=(-30.287245, 153.092991),
-    Sydney=(-33.839943, 151.006101),
-    Adelaide=(-34.901608, 138.601547),
-    Port_Augusta=(-32.466201, 137.813850),
-    Devonport=(-41.180545, 146.314887),
-    Hobart=(-42.881742, 147.323879),
+#    Adelaide=(-34.901608, 138.601547),
     Brisbane=(-27.436190, 152.990588),
     Cairns=(-16.937281, 145.747709),
+    Darwin=(-12.4634, 130.8456),
+    Hobart=(-42.881742, 147.323879),
+    Melbourne=(-37.805896, 144.959527),
     Perth=(-31.9505, 115.8605),
-    Geraldton=(-28.778138, 114.615632)
+    Sydney=(-33.839943, 151.006101),
 )
-loc_growthrates = map(locations) do loc
-    map(f -> f[:H][Lat(Near(loc[1])), Lon(Near(loc[2]))], growth_output)
+plotspan = Between(DateTime(2020), DateTime(2022))
+loc_populations = map(locations) do loc
+    coords = Lat(Contains(loc[1])), Lon(Contains(loc[2]))
+    map(f -> f[:H][coords...] + 1, growth_output[plotspan])
 end
-growthplot = plot(cat(loc_growthrates...); 
-    labels=string.(keys(locations)), xguide="Time", yguide="Population"
+map(f -> f[:H][100, 100], growth_output)
+growth_output[end][:H][100, 100]
+plot(growth_output[end][:H])
+theme(:vibrant)
+
+growthplot = plot(Date.(index(growth_output[plotspan], Ti)), reduce(hcat, loc_populations); 
+    labels=reshape([string.(keys(locations))...], (1, length(locations))), 
+    lalpha=0.7,
+    xguide="Time", 
+    yguide="Population",
+    yscale=:log10,
+    ylims=(2.0, 1e9),
+    legend=:bottomright,
+    margin=20px,
+    size=(400, 400),
 )
+
+savefig("output/growthplot.png")
+
+
 
 init = (H=hostpop, P=parapop)
 host_para_output = ArrayOutput(init; kwargs...)
