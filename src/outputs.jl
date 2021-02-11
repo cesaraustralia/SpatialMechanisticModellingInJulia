@@ -1,35 +1,40 @@
-using DynamicGridsInteract, ColorSchemes
-using DynamicGridsGtk
+
+# Warning: Due to a threading bug in GTK, do not run benchmarks or use
+# ThreadedCPU during or after running this file. They will crawl.
+using ColorSchemes, DynamicGridsGtk
+
+tspan = DateTime(2020, 1):Day(7):DateTime(2040, 1)
 
 viewer = CopyTo{:rH}(Aux(:rH))
-ruleset = Ruleset(growth, allee, viewer)
-# output = GtkOutput((H=hostpop, rH=zero(hostpop)); 
-output = ElectronOutput((H=fill(1f3, size(hostpop)), rH=zero(hostpop)); 
+ruleset = Ruleset(growth, localdisp, allee, viewer)
+output = GtkOutput((H=hostinit, rH=zero(hostinit)); 
     ruleset=ruleset,
-    aux=(; rH=rH),
+    aux=auxdata,
     mask=parent(mask),
     tspan=tspan, 
-    store=true,
-    fps=50,
+    store=false,
+    fps=100,
     minval=(0.0f0, 0.0f0), 
     maxval=(carrycap, maximum(rH)),
     scheme=(ColorSchemes.autumn, ColorSchemes.inferno),
 )
+sim!(output, (growth, wind, localdisp, allee, viewer)) 
 
-sim!(output, (growth, viewer)) 
+ruleset = Ruleset(wind, localdisp, growth, allee, localdispP, alleeP, parasitism)
+# ruleset = Ruleset(randomgrid, gpu_wind, localdisp, growth, allee, localdispP, alleeP, parasitism; proc=CuGPU())
 
-ruleset = Ruleset(wind, localdisp, localdispP, allee, alleeP, host_parasite)
-# output = GtkOutput((H=hostpop, P=parapop, rH=zero(rH[Ti(1)])); 
-output = ElectronOutput((H=hostpop, P=parapop);#, rH=zero(rH[Ti(1)])); 
+output = GtkOutput(initdata;
+# output = ElectronOutput((H=hostpop, P=parapop);#, rH=zero(rH[Ti(1)])); 
+    filename="output/hostparasite.gif", 
     ruleset=ruleset,
-    aux=(; rH=rH, rP=rH),
+    aux=auxdata,
     mask=parent(mask),
     tspan=tspan,
-    fps=100,
+    fps=1000,
     store=true,
-    minval=(0.0f0, 0.0f0), 
-    maxval=(carrycap, carrycap),
-    scheme=(ColorSchemes.autumn, ColorSchemes.autumn),
+    minval=(0.0f0, 0.0f0, nothing), 
+    maxval=(carrycap, carrycap, nothing),
+    scheme=(ColorSchemes.autumn, ColorSchemes.jet, Greyscale()),
 )
-
 sim!(output, ruleset)
+# savegif("output/hostparasite.gif", output)

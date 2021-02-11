@@ -1,8 +1,9 @@
 #### Simple Growth Model #####################
 
-using GrowthMaps, ArchGDAL, Unitful, GeoData, HDF5, Dates, CUDA, Random, KernelAbstractions
-using GeoData: Between
-CUDA.allowscalar(false)
+using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots
+
+# Need to set a path for downloaded raster files
+# ENV["RASTERDATASOURCES_PATH"] = "/home/YOUR_USERNAME/Data/"
 
 # Define julia object to hold parameters to for the simple growth model 
 # a struct with parameters, that inherits from GrowthModel
@@ -16,38 +17,43 @@ end
 # Add a Growthmaps.rate method to calculate growth for a specific temperature
 # Weird: we are adding a method to a function in the GrowthMaps mackage
 # for the struct we have defined above.
-GrowthMaps.rate(m::IntrinsicGrowth, temp) = 
-    _gr(m.intercept, m.up, m.inflection, m.down, temp)
+function GrowthMaps.rate(m::IntrinsicGrowth, temp) 
+    growthrate(m.intercept, m.up, m.inflection, m.down, temp)
+end
 
-_gr(a, b, c, d, x) = x < c ? a + b*x  : a + b*c - d*(x - c)  
+growthrate(s, a, b, c, x) = x < c ? s + a*x/c - a : s + b - b*x/c  
 
-# Parametrise the struct for host and parasite
-host_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 30u"°C" |> u"K", 0.1u"K^-1")
-para_growth = IntrinsicGrowth(-14.6, 0.05u"K^-1", 26u"°C" |> u"K", 0.1u"K^-1")
+# Define out growth rate models:
+host_growth = IntrinsicGrowth(0.3, 9.0, 50.0, 35u"°C" |> u"K")
+para_growth = IntrinsicGrowth(0.3, 9.0, 40.0, 25u"°C" |> u"K")
 
-# Specify the SMAP layer `surface_temp` with units Kelvin
-host_model = Model(Layer(:surface_temp, u"K", host_growth))
-para_model = Model(Layer(:surface_temp, u"K", para_growth))
-
-# Plot this with scatter, if there is room
+# Plot growth rate curves:
 temps = collect(-15.0u"°C":0.1u"K":40.0u"°C")
+p = plot(x -> GrowthMaps.rate(host_growth, x), temps; label="host")
+plot!(p, x -> GrowthMaps.rate(para_growth, x), temps; label="parasite")
+display(p)
 
-# Get time series of SMAP files to load
-# days = 1:31 # all
-days = 1 # one day a month
-series = SMAPseries("/home/raf/Data/SMAP/SMAP_L4_SM_gph_v4")[Where(t -> dayofmonth(t) in days)]
+# Specify the WorldClim Climate layer `tavg` with units in degrees C.
+# In practise we would use a finer resolution dataset to capture the 
+# range of temperature stresses, but this is easier to download and use.
+host_model = Model(Layer(:tavg, u"°C", host_growth))
+para_model = Model(Layer(:tavg, u"°C", para_growth))
+
+# Download and set up the WorldClim Climate data series
+ser = series(WorldClim{Climate}, :tavg; month=1:12)
 
 # Run for 12 months of 2017, on a CUDA GPU
 @time rates = mapgrowth((host=host_model, para=para_model);
-    series=series,
-    tspan=DateTime(2017, 1):Month(1):DateTime(2017, 12),
-    arraytype=CuArray, # Run on a CUDA GPU
+    series=ser,
+    tspan=1:12,
 )
 
-for t in eachindex(dims(rates[:host], Ti))
+# Save tifs for each layer
+for t in 1:12
     path = joinpath("output/growthrates/")
-    mkpath(path)
+    mkpath(joinpath(path, "host"))
+    mkpath(joinpath(path, "parasite"))
     tpad = lpad(t, 2, '0')
-    write(joinpath(path, "host_$tpad.tif"), GDALarray, rates[:host][Ti(t)])
-    write(joinpath(path, "parasite_$tpad.tif"), GDALarray, rates[:para][Ti(t)])
+    write(joinpath(path, "host/$tpad.tif"), GDALarray, rates[:host][Ti(t)])
+    write(joinpath(path, "parasite/$tpad.tif"), GDALarray, rates[:para][Ti(t)])
 end

@@ -1,108 +1,177 @@
-using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random
+using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Adapt
+using DynamicGrids: CuGPU, CPU, GPU
+
+# CUDA tweaks
+CUDA.allowscalar(false)
+# Use CUDA rand
+_rand!(A::CuArray) = CUDA.rand!(A)
+
+basedir = "/home/raf/julia/MethodsPaper"
+include(joinpath(basedir, "src", "models.jl"))
+include(joinpath(basedir, "src", "data.jl"))
+
 
 function setupsim(rules;
     tspan=DateTime(2020, 1, 1):Day(1):DateTime(2020, 4, 10),
-    size=(100, 100), opt=NoOpt(), proc=SingleCPU(),
-    growthmin=-5.0f0, growthmax=0.2f0
+    opt=NoOpt(), proc=SingleCPU(), size_ag,
+    growthmin=-5.0f0, growthmax=0.2f0,
+    output_type=ResultOutput
 )
-    # gr = rand(Float32, size...) .* (growthmax - growthmin) .- growthmin
-    # init = (; H=rand(Bool, size) .* 100.0f0, rand=rand(Float32, size))
-    hostpop .= 100.0f0
-    rnge = Base.OneTo.(size) 
-    o = ArrayOutput((; H=hostpop[rnge...], P=parapop[rnge...], rand=rand(Float32, size)); 
-        aux=(; rH=r_host_aus[rnge..., :], rP=r_para_aus[rnge..., :]), 
-        mask=Array(mask)[rnge...],
-        tspan=tspan
+    # Take top right corner to make a square - but most of australia
+    ax = 1:200, lastindex(hostpop, 2)-199:lastindex(hostpop, 2)
+    sze = size_ag[2]
+    ag = size_ag[2]
+    hpop = parent(ag(hostpop[ax...]))
+    @assert size(hpop, 1) == size(hpop, 2) == sze
+    init = (; 
+        H=parent(ag(hostpop[ax...])), 
+        P=parent(ag(parapop[ax...])),
     )
-    rs = Ruleset(rules; opt=opt, proc=proc)
-    # sd = DynamicGrids.SimData(DynamicGrids.extent(o), rs)
-    # Warmup compilation
-    # sim!(o, rs)
+    o = output_type(init, rand=rand(Float32, sze, sze); 
+        aux=(; rH=ag(rH[ax..., :]), rP=ag(rP[ax..., :])), 
+        mask=Array(ag(mask[ax...])),
+        tspan=tspan,
+        style=Braile(), color=:blue, fps=100,
+    )
+    proc_rules = rules[proc isa CPU ? :cpu : :gpu]
+    rs = Ruleset(proc_rules; opt=opt, proc=proc)
     return (; o, rs)
 end
-function bench(rules)
+
+function suite(rules)
     suite = BenchmarkGroup()
     for opt in keys(opts)
         suite[opt] = BenchmarkGroup(["proc", "size"])
         for proc in keys(procs), s in sizes
-            suite[opt][proc, s] = @benchmarkable sim!(x[:o], x[:rs]) setup=(x = setupsim($rules; size=($s, $s), proc=$(procs[proc]), opt=$(opts[opt])))
+            # SparseOpt is not implemented for GPU yet
+            proc isa CuGPU && opt isa SparseOpt && continue
+            suite[opt][proc, s] = @benchmarkable sim!(o, rs) setup=((o, rs)=setupsim($rules; size=$s, proc=$(procs[proc]), opt=$(opts[opt])))
         end
     end
-    results = run(suite, verbose=true)
+    suite
 end
 
-procs = Dict("gpu"=>CuGPU(), "single"=>SingleCPU(), "threaded"=>ThreadedCPU())
-opts = Dict("noopt"=>NoOpt(), "sparseopt"=>SparseOpt())
-sizes = (100, 200, 300, 400)#, 1000, 2000)
-rulegroups = (Wind=(randomgrid, gpu_wind, growth), Local=(localdisp, growth), Combined=(localdisp, randomgrid, gpu_wind, growth))
-results = map(bench, rulegroups)
-results[:Combined][@tagged 400]
-minimum(results[:Combined].data["sparseopt"].data[("gpu", 400)].times) / 1e9
+procs = (single=SingleCPU(), threaded=ThreadedCPU(), gpu=CuGPU())
+opts = (noopt=NoOpt(), sparseopt=SparseOpt())
+sizes = [
+    100 => A -> aggregate(Center(), A, Lat(2), Lon(2)), 
+    200 => A -> A,  
+    400 => A -> disaggregate(Center(), A, Lat(2), Lon(2)), 
+    800 => A -> disaggregate(Center(), A, Lat(4), Lon(4)), 
+]
 
-output = ArrayOutput((; H=parent(hostpop), P=parent(parapop), rand=rand(Float32, size(hostpop))); 
-    aux=(; rH=r_host_aus, rP=r_para_aus), 
-    mask=Array(mask),
-    tspan=tspan
+# CPU/GPU rules 
+# These are separate as the best optimisations are not the same on CPU and GPU. 
+# Chain has better effects on GPU than on GPU, and GPU needs random numbers generated 
+# in a GridRule # on a separate grid, due to the current lack of a `rand` function 
+# inside GPU kernels.
+rulegroups = (
+    Wind=(cpu=(wind, allee, growth), gpu=(randomgrid, gpu_wind, allee, growth)), 
+    Local=(cpu=(localdisp, allee, growth), gpu=(localdisp, allee, growth)), 
+    Combined=(cpu=(wind, localdisp, allee, growth), gpu=(randomgrid, gpu_wind, localdisp, allee, growth)),
+    Parasitism=(cpu=(wind, localdisp, growth, allee, localdispP, alleeP, parasitism), 
+                gpu=(randomgrid, gpu_wind, localdisp, localdispP, Chain(allee, growth, alleeP, parasitism))),
 )
 
-for key in keys(rulegroups), p in values(procs), o in values(opts)
-    @show key p o
-    @time sim!(output, rulegroups[key]; proc=p)
+suites = map(suite, rulegroups)
+map(tune!, suites)
+results = map(s -> run(s, verbose=true), suites)
+
+# Run all variants in the REPL to see that they make sense
+for key in keys(rulegroups), size in sizes, opt in values(opts), proc in values(procs)
+    @show key
+    o, rs = setupsim(rulegroups[key], size=size)#, output_type=REPLOutput)
+    sim!(o, rs; opt=opt, proc=proc)
 end
 
+@time results = map(bench, rulegroups)
+results[:Combined][@tagged 400]
+# minimum(results[:Combined].data["sparseopt"].data[("gpu", 400)].times) / 1e9
+
+# tspan = DateTime(2020, 1):Week(1):DateTime(2020, 1) + Week(100)
+# output = ArrayOutput((; H=parent(hostpop), P=parent(parapop), rand=rand(Float32, size(hostpop))); 
+#     aux=(; rH=rH, rP=rP), 
+#     mask=Array(mask),
+#     tspan=tspan
+# )
+
+# sd = DynamicGrids.SimData(output, Ruleset(rulegroups[:Wind]))
+
+# Flatten.fieldnameflatten(sd, Union{Array,BitArray}, SArray)
+# Flatten.flatten(sd, Union{Array,BitArray}, Union{SArray,Dict})
+# using Adapt, Flatten, StaticArrays
+
 function plotbench(b, key)
-    p = plot(; )
+    p = plot()
+    i = 2
     for prockey in Tuple(keys(procs))
-        if prockey != "gpu" # no sparseopt on GPU
-            so_times = map(sizes) do s
-                minimum(b.data["sparseopt"].data[(prockey, s)].times)  / 1e9
+        for optkey in Tuple(keys(opts))
+            if optkey == :sparseopt
+                prockey == :gpu && continue
+                lab = uppercasefirst(string("Sparse ", prockey))
+            else
+                lab = uppercasefirst(string(prockey))
             end
-            @show so_times
-            plot!(p, collect(sizes), collect(so_times); label="Sparse $prockey", pallete=:Dark2_5, opacity=0.8)
+            times = map(sizes) do s
+                median(b.data[optkey].data[(prockey, s)].times) / 1e9
+            end
+            plot!(p, collect(sizes), collect(times); 
+                color=i, label=lab, pallete=:Dark2_5, opacity=0.6
+            )
+            i += 1
         end
-        no_times = map(sizes) do s
-            minimum(b.data["noopt"].data[(prockey, s)].times) / 1e9
-        end
-        @show no_times
-        plot!(p, collect(sizes), collect(no_times); label=uppercasefirst(prockey), pallete=:Dark2_5, opacity=0.8)
     end
     plot(p; 
         title=string(key), 
-        ylims=(0, 0.4), 
-        legend=:top, 
+        ylims=(1e-3, 1.0), 
+        yaxis=:log,
+        titlefontsize=10,
+        guidefontsize=9,
+        tickfontsize=8,
+        linewidth=2,
+        legend=(key == :Parasitism ? :bottomright : :none), 
         tickfontcolor=RGB(0.2),
         legendfontcolor=RGB(0.2),
         minorgrid=false,
-        xlabel="Grid side",
-        ylabel="Time in seconds",
+        grid=true,
+        xlabel=(key in (:Combined, :Parasitism) ? "Size" : ""),
+        # xformatter=(key in (:Combined, :Parasitism) ? _->"" : false),
+        ylabel=(key in (:Wind, :Combined) ? "Time in seconds" : ""),
+        # yticks=(key in (:Wind, :Combined) ? true : false),
     )
 end
-pyplot()
+# pyplot()
 theme(:vibrant)
 using Plots: px
-plot(map(plotbench, results, keys(results))...; layout=(1, 3), size=(1200, 400))
+plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(500, 500))
 
-savefig("benchmarks.png")
+savefig("output/benchmarks.png")
 
 
-### Other ########################################33
+### Other ########################################
 
-using ConstructionBase
-ConstructionBase.constructorof(::Type{<:LinRange}) = _linrange
-_linrange(start, stop, len, lendiv) = LinRange(start, stop, len)
+# using ConstructionBase
+# ConstructionBase.constructorof(::Type{<:LinRange}) = _linrange
+# _linrange(start, stop, len, lendiv) = LinRange(start, stop, len)
 
-hostpop_disag, parapop_disag, r_host_aus_disag, r_para_aus_disag, mask_disag = 
-    map((hostpop, parapop, r_host_aus, r_para_aus, mask)) do A
-        A = set(A, Lat=NoIndex(), Lon=NoIndex())
-        # A = hasdim(A, Ti) ? set(A, Ti=NoIndex()) : A
-        GeoData.disaggregate(Center(), A, (Lat(4), Lon(4), Ti(1)))
-    end
+# hostpop_disag, parapop_disag, rH_disag, rP_disag, mask_disag = 
+#     map((hostpop, parapop, rH, rP, mask)) do A
+#         A = set(A, Lat=NoIndex(), Lon=NoIndex())
+#         # A = hasdim(A, Ti) ? set(A, Ti=NoIndex()) : A
+#         GeoData.disaggregate(Center(), A, (Lat(4), Lon(4), Ti(1)))
+#     end
+# A = set(rH, Lat=NoIndex(), Lon=NoIndex(), Ti=NoIndex())
+# output = ArrayOutput((; H=hostpop_disag, P=parapop_disag, rand=rand(Float32, size(hostpop_disag))); 
+#     aux=(; rH=rH_disag, rP=rP_disag), 
+#     mask=Array(mask_disag), 
+#     tspan=tspan
+# )
 
-A = set(r_host_aus, Lat=NoIndex(), Lon=NoIndex(), Ti=NoIndex())
-typeof(index(r_host_aus_disag))
+tspan = DateTime(2020, 1):Week(1):DateTime(2020, 1) + Week(100)
+output = ArrayOutput(initdata; aux=auxdata, mask=Array(mask), tspan=tspan)
 
-output = ArrayOutput((; H=hostpop_disag, P=parapop_disag, rand=rand(Float32, size(hostpop_disag))); 
-    aux=(; rH=r_host_aus_disag, rP=r_para_aus_disag), mask=Array(mask_disag), tspan=tspan)
+@time sim!(output, wind);
+@time sim!(output, wind; opt=SparseOpt());
 
 @time sim!(output, growth);
 @time sim!(output, growth; proc=ThreadedCPU());
@@ -110,60 +179,151 @@ output = ArrayOutput((; H=hostpop_disag, P=parapop_disag, rand=rand(Float32, siz
 @time sim!(output, localdisp);
 @time sim!(output, localdisp; proc=ThreadedCPU());
 @time sim!(output, localdisp; proc=CuGPU());
-@time sim!(output, localdisp, growth);
-@time sim!(output, localdisp, growth; proc=ThreadedCPU());
-@time sim!(output, localdisp, growth; proc=CuGPU());
-@time sim!(output, gpu_wind, randomgrid, growth);
-@time sim!(output, gpu_wind, randomgrid, growth; proc=ThreadedCPU());
-@time sim!(output, gpu_wind, randomgrid, growth; proc=CuGPU());
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth);
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth; proc=ThreadedCPU());
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth; proc=CuGPU());
+@time sim!(output, (localdisp, growth, allee));
+@time sim!(output, (localdisp, growth, allee); proc=ThreadedCPU());
+@time sim!(output, Chain(localdisp, growth, allee));
+@time sim!(output, Chain(localdisp, growth, allee); proc=ThreadedCPU());
+@time sim!(output, (localdisp, growth, allee); proc=CuGPU());
+@time sim!(output, Chain(localdisp, growth, allee); proc=CuGPU());
+@time sim!(output, randomgrid, gpu_wind, growth);
+
+@time sim!(output, wind, Chain(growth, allee));
+@time sim!(output, randomgrid, gpu_wind, growth; proc=ThreadedCPU());
+@time sim!(output, randomgrid, gpu_wind, growth; proc=CuGPU());
+@time sim!(output, randomgrid, gpu_wind, Chain(growth, allee); proc=ThreadedCPU());
+@time sim!(output, randomgrid, gpu_wind, Chain(growth, allee); proc=CuGPU());
+
+@time sim!(output, randomgrid, gpu_wind, Chain(localdisp, growth, allee));
+@time sim!(output, randomgrid, gpu_wind, Chain(localdisp, growth, allee); proc=ThreadedCPU());
+@time sim!(output, randomgrid, gpu_wind, Chain(localdisp, growth, allee); proc=CuGPU());
+@time sim!(output, randomgrid, gpu_wind, localdisp, growth, allee);
+@time sim!(output, randomgrid, gpu_wind, localdisp, growth, allee; proc=ThreadedCPU());
+@time sim!(output, randomgrid, gpu_wind, localdisp, growth, allee; proc=CuGPU());
 
 @time sim!(output, growth, opt=SparseOpt());
 @time sim!(output, growth; proc=ThreadedCPU(), opt=SparseOpt());
 @time sim!(output, growth; proc=CuGPU(), opt=SparseOpt());
-@time sim!(output, localdisp, growth, opt=SparseOpt());
+@time sim!(output, localdisp, growth, allee, opt=SparseOpt());
+@time sim!(output, Chain(localdisp, growth, allee), opt=NoOpt());
+@time sim!(output, Chain(localdisp, growth, allee), opt=SparseOpt());
 @time sim!(output, localdisp, growth; proc=ThreadedCPU(), opt=SparseOpt());
 @time sim!(output, localdisp, growth; proc=CuGPU(), opt=SparseOpt());
-@time sim!(output, gpu_wind, randomgrid, growth, opt=SparseOpt());
-@time sim!(output, gpu_wind, randomgrid, growth; proc=ThreadedCPU(), opt=SparseOpt());
-@time sim!(output, gpu_wind, randomgrid, growth; proc=CuGPU(), opt=SparseOpt());
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth, opt=SparseOpt());
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth; proc=ThreadedCPU(), opt=SparseOpt());
-@time sim!(output, localdisp, gpu_wind, randomgrid, growth; proc=CuGPU(), opt=SparseOpt());
+@time sim!(output, randomgrid, gpu_wind, growth, opt=SparseOpt());
+@time sim!(output, randomgrid, gpu_wind, growth; proc=ThreadedCPU(), opt=SparseOpt());
+@time sim!(output, randomgrid, gpu_wind, growth; proc=CuGPU(), opt=SparseOpt());
+@time sim!(output, localdisp, randomgrid, gpu_wind, growth, opt=SparseOpt());
+@time sim!(output, localdisp, randomgrid, gpu_wind, growth; proc=ThreadedCPU(), opt=SparseOpt());
+@time sim!(output, localdisp, randomgrid, gpu_wind, growth; proc=CuGPU(), opt=SparseOpt());
+
+@time sim!(output, randomgrid, gpu_wind, localdisp, allee, localdispP, alleeP, parasitism; proc=SingleCPU());
+@time sim!(output, randomgrid, gpu_wind, localdisp, allee, localdispP, alleeP, parasitism; proc=ThreadedCPU());
+@time sim!(output, randomgrid, gpu_wind, localdisp, allee, localdispP, alleeP, parasitism; proc=CuGPU());
+@time sim!(output, randomgrid, gpu_wind, Chain(localdisp, allee), Chain(localdispP, alleeP), parasitism; proc=SingleCPU());
+@time sim!(output, randomgrid, gpu_wind, Chain(localdisp, allee), Chain(localdispP, alleeP), parasitism; proc=ThreadedCPU());
+# @time sim!(output, randomgrid, gpu_wind, Chain(localdisp, allee), Chain(localdispP, alleeP), parasitism; proc=CuGPU());
 
 ruleset = (randomgrid, gpu_wind, localdisp, para_localdisp, host_para_growth)
 @time sim!(output, ruleset);
 @time sim!(output, ruleset; proc=ThreadedCPU());
 @time sim!(output, ruleset; proc=CuGPU());
-# using ProfileView, Profile
-# Profile.clear()
-# f(output, growth) = @profile for i in 1:100 sim!(output, randomgrid, gpu_wind, growth) end
-# f(output, growth)
-# ProfileView.view()
 
-# output = ArrayOutput((; host=hostpop); tspan=tspan)
-# error()
+using BenchmarkTools, Cthulhu
 
-# @time sim!(output, localdisp);
-# @btime sim!($output, $localdisp);
-# @btime sim!($output, $localdisp; proc=ThreadedCPU());
-# @btime sim!($output, $localdisp; proc=CuGPU());
-# output = ArrayOutput((; host=hostpop); aux=(; growthrates=growthrates1), tspan=tspan)
-# @btime sim!($output, Chain($localdisp, $growth));
-# @btime sim!($output, Chain($localdisp, $growth); proc=ThreadedCPU());
-# @btime sim!($output, Chain($localdisp, $growth); proc=CuGPU());
-# # * use a `let` block for 0.2 so the variable is locally-scope
+rule = Chain(localdisp, growth, allee)
+rule = growth
+tspan = DateTime(2020, 1):Week(1):DateTime(2020, 1) + Week(100)
+output = ArrayOutput((; H=parent(hostpop), P=parent(parapop), rand=rand(Float32, size(hostpop))); 
+    aux=(; rH=rH, rP=rP), mask=Array(mask), tspan=tspan
+)
+sd = DynamicGrids._initdata!(nothing, output.extent, Ruleset(rule))
+sd = DynamicGrids._updatetime(sd, 1) |> s -> DynamicGrids.precalcrules(s, rules(s))
+rule = first(rules(sd))
+grid = sd[DynamicGrids.neighborhoodkey(rule)]
+r = max(1, DynamicGrids.radius(rule))
+T = eltype(grid)
+S = 2r + 1
+buffer = SArray{Tuple{S,S},T,2,S^2}(Tuple(zero(T) for i in 1:S^2))
+@btime DynamicGrids._setbuffer($rule, $buffer)
+DynamicGrids.maprule!(sd, rule)
+@code_warntype DynamicGrids.applyrule(sd, rule, (H=1.0f0, P=1.0f0), (1,2))
+@code_native DynamicGrids.applyrule(sd, rule, (H=1.0f0, P=1.0f0), (1,2))
+@descend DynamicGrids.applyrule(sd, rule, (H=1.0f0, P=1.0f0), (1, 2))
 
-# output = ArrayOutput((; host=hostpop); aux=(; growthrates=growthrates1), tspan=tspan)
-# sim!(output, (localdisp, wind, growth))
-# @btime sim!($output, Chain($localdisp, $growth), $wind);
-# @btime sim!($output, Chain($localdisp, $growth), $wind; proc=ThreadedCPU());
-# @btime sim!($output, Chain($localdisp, $growth), $wind; proc=CuGPU());
-# output = REPLOutput((; host=hostpop);tspan=tspan)
-# output = ArrayOutput((; host=hostpop);tspan=tspan)
-# sim!(output, wind)
-# @btime sim!($output, $wind);
-# @btime sim!($output, $wind; proc=ThreadedCPU());
-# # THIS CRASHES @btime sim!($output, $wind; proc=CuGPU());
+function perf(f, args)
+    pid = getpid()
+    cmd = `perf $args --pid=$pid`
+    proc = run(pipeline(cmd, stdout=stdout, stderr=stderr); wait=false)
+    try
+        return f()
+    finally
+        flush(stdout)
+        flush(stderr)
+        kill(proc, Base.SIGINT)
+        wait(proc)
+    end
+end
+
+perf(f, `stat -e L1-dcache-load-misses,L1-dcache-loads,L1-dcache-stores,L1-icache-load-misses`)
+perf(f, `stat -e LLC-load-misses,LLC-loads,LLC-stores`)
+
+perf(f, ``) 
+
+f() = (@btime sim!($output, $localdisp, $growth; proc=ThreadedCPU()); nothing)
+f()
+
+using ProfileView, Profile, StaticArrays
+
+Profile.clear()
+@btime sim!($output, Ruleset());
+@btime sim!($output, Ruleset(); proc=ThreadedCPU());
+@btime sim!($output, $localdisp; proc=ThreadedCPU());
+@btime sim!($output, $localdisp; proc=ThreadedCPU(), opt=SparseOpt());
+
+@btime sim!($cu_output, $localdisp; proc=CuGPU());
+@btime sim!($output, $growth);
+@btime sim!($output, $localdisp, $allee);
+@btime sim!($output, $growth; proc=CuGPU());
+@btime sim!($output, $localdisp, $growth);
+@btime sim!($output, Chain($localdisp, $growth));
+@btime sim!($output, Chain($localdisp, $growth); proc=ThreadedCPU());
+@btime sim!($cu_output, Chain($localdisp, $growth); proc=CuGPU());
+
+@btime sim!($output, $wind, $allee, $growth);
+@btime sim!($output, $wind, $allee, $growth; opt=SparseOpt());
+@btime sim!($output, $wind, $allee, $growth; proc=ThreadedCPU());
+@btime sim!($output, $wind, $allee, $growth; proc=ThreadedCPU(), opt=SparseOpt());
+
+@btime sim!($output, Chain($localdisp, $growth), $wind);
+@btime sim!($output, Chain($localdisp, $growth), $wind; proc=ThreadedCPU());
+
+@btime sim!($output, ($localdisp, $growth, $allee));
+@btime sim!($output, $localdisp, Chain($allee, $growth));
+@btime sim!($output, $localdisp, Chain($growth, $allee));
+@btime sim!($output, ($localdisp, $growth, $allee); opt=SparseOpt());
+@btime sim!($output, Chain($localdisp, $growth, $allee); opt=SparseOpt());
+@btime sim!($output, $localdisp, Chain($growth, $allee); opt=SparseOpt());
+@btime sim!($output, ($localdisp, $growth, $allee); proc=ThreadedCPU());
+@btime sim!($output, Chain($localdisp, $growth, $allee); proc=ThreadedCPU());
+@btime sim!($output, ($localdisp, $growth, $allee); proc=ThreadedCPU(), opt=SparseOpt());
+@btime sim!($output, $localdisp, Chain($growth, $allee); proc=ThreadedCPU(), opt=SparseOpt());
+@btime sim!($cu_output, ($localdisp, $growth, $allee); proc=CuGPU());
+@btime sim!($cu_output, Chain($localdisp, $growth, $allee); proc=CuGPU());
+
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism);
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; opt=SparseOpt());
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; proc=ThreadedCPU());
+@btime sim!($output, $wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; proc=ThreadedCPU());
+@btime sim!($output, $wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; opt=SparseOpt(), proc=ThreadedCPU());
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; opt=SparseOpt(), proc=ThreadedCPU());
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, Chain($allee, $growth), $localdispP, Chain($alleeP, $parasitism); opt=SparseOpt(), proc=ThreadedCPU());
+@btime sim!($output, $randomgrid, $gpu_wind, $localdisp, $allee, $growth, $localdispP, $alleeP, $parasitism; proc=CuGPU());
+@btime sim!($cu_output, $randomgrid, $gpu_wind, $localdisp, $localdispP, Chain($allee, $growth, $alleeP, $parasitism); proc=CuGPU());
+@btime sim!($output, Ruleset(); proc=CuGPU());
+@btime sim!($output, Ruleset());
+
+cu_output = adapt(CuArray, output);
+sim!(cu_output, randomgrid, gpu_wind, localdisp, Chain(allee, growth), localdispP, alleeP, parasitism; proc=DynamicGrids.CuGPU());
+
+using Adapt
+@profview sim!(cu_output, Ruleset(); proc=CuGPU());
+@btime sim!(cu_output, Ruleset(); proc=CuGPU());
