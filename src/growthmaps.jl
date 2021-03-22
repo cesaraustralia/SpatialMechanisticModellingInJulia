@@ -58,7 +58,7 @@ using Shapefile, Plots, Colors, ColorSchemes
 using Plots: px
 
 # Plot setup
-shp = Shapefile.Handle("/home/raf/.julia/dev/MethodsPaper/data/ausborder_polyline.shp")
+shp = Shapefile.Handle(joinpath(basedir, "data", "ausborder_polyline.shp"))
 shape_opts = (lw=0.5, color=RGB(0.3))
 plot_opts = (; 
     showaxis=false,

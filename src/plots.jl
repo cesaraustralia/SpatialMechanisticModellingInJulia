@@ -3,9 +3,11 @@ using Plots: px
 Plots.theme(:default)
 
 # The directory for this project
-basedir = realpath(joinpath(@__DIR__, ".."))
+basedir = realpath(joinpath(@__DIR__))
+
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))
+include(joinpath(basedir, "src", "growthmaps.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
 # Save gifs, as in the paper
@@ -18,7 +20,7 @@ output = GifOutput((H=init_h, P=init_p);
 sim!(output, (wind, localdisp, allee, growth, localdisp_p, allee_p, parasitism))
 
 # Plot setup
-shp = Shapefile.Handle("/home/raf/.julia/dev/MethodsPaper/data/ausborder_polyline.shp")
+shp = Shapefile.Handle(joinpath(basedir, "data", "ausborder_polyline.shp"))
 shape_opts = (lw=0.5, color=RGB(0.3))
 plot_opts = (; 
     showaxis=false,
