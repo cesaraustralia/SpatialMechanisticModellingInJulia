@@ -1,11 +1,12 @@
-using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Adapt
+using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 CUDA.allowscalar(false)
 
-basedir = "/home/raf/julia/MethodsPaper"
+# The directory for this project
+basedir = realpath(joinpath(@__DIR__, ".."))
+# Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))
 include(joinpath(basedir, "src", "data.jl"))
-
 
 ##### GPU wind rule ####
 
@@ -49,18 +50,18 @@ function setupsim(rules;
     output_type=ResultOutput
 )
     # Take top right corner to make a square - but most of australia
-    ax = 1:200, lastindex(hostinit, 2)-199:lastindex(hostinit, 2)
+    ax = 1:200, lastindex(init_h, 2)-199:lastindex(init_h, 2)
     sze = size_ag[1]
     ag = size_ag[2]
-    hpop = parent(ag(hostinit[ax...]))
+    hpop = parent(ag(init_h[ax...]))
     @assert size(hpop, 1) == size(hpop, 2) == sze
     init = (; 
-        H=parent(ag(hostinit[ax...])), 
-        P=parent(ag(parainit[ax...])),
+        H=parent(ag(init_h[ax...])), 
+        P=parent(ag(init_p[ax...])),
         rand=rand(Float32, sze, sze)
     )
     o = output_type(init; 
-        aux=(; rH=ag(rH[ax..., :]), rP=ag(rP[ax..., :])), 
+        aux=(; rH=ag(rate_h[ax..., :]), rP=ag(rate_p[ax..., :])), 
         mask=Array(ag(mask[ax...])),
         tspan=tspan,
         style=Braile(), color=:blue, fps=100,
@@ -113,8 +114,8 @@ rulegroups = (
     Wind=(cpu=(wind, allee, growth), gpu=(randomgrid, gpu_wind, allee, growth)), 
     Local=(cpu=(localdisp, allee, growth), gpu=(localdisp, allee, growth)), 
     Combined=(cpu=(wind, localdisp, allee, growth), gpu=(randomgrid, gpu_wind, localdisp, allee, growth)),
-    Parasitism=(cpu=(wind, localdisp, growth, allee, localdispP, alleeP, parasitism), 
-                gpu=(randomgrid, gpu_wind, localdisp, localdispP, Chain(allee, growth, alleeP, parasitism))),
+    Parasitism=(cpu=(wind, localdisp, growth, allee, localdisp_p, allee_p, parasitism), 
+                gpu=(randomgrid, gpu_wind, localdisp, localdisp_p, Chain(allee, growth, allee_p, parasitism))),
 )
 
 # Run all variants in the REPL to see that they make sense

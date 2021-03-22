@@ -41,8 +41,7 @@ para_model = Model(Layer(:tavg, u"°C", para_growth))
 
 # Download and set up the WorldClim Climate data series
 ser = series(WorldClim{Climate}, :tavg; month=1:12)
-
-# Run for 12 months of 2017, on a CUDA GPU
+# Run for 12 months
 @time rates = mapgrowth((host=host_model, para=para_model); series=ser, tspan=1:12)
 
 # Save tifs for each layer
