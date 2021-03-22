@@ -7,7 +7,6 @@ basedir = realpath(joinpath(@__DIR__))
 
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))
-include(joinpath(basedir, "src", "growthmaps.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
 # Save gifs, as in the paper

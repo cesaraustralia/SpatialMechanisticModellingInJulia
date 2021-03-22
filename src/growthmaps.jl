@@ -2,6 +2,8 @@
 
 using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots
 
+basedir = realpath(joinpath(@__DIR__))
+
 # Set a path for downloaded raster files
 # ENV["RASTERDATASOURCES_PATH"] = "/home/YOUR_USERNAME/Data/"
 
@@ -45,8 +47,9 @@ ser = series(WorldClim{Climate}, :tavg; month=1:12)
 @time rates = mapgrowth((host=host_model, para=para_model); series=ser, tspan=1:12)
 
 # Save tifs for each layer
+path = joinpath(basedir, "output/growthrates/")
+mkpath(path)
 for t in 1:12
-    path = joinpath("output/growthrates/")
     write(joinpath(path, "host_$(lpad(t, 2, '0')).tif"), GDALarray, rates[:host][Ti(t)])
     write(joinpath(path, "parasite_$(lpad(t, 2, '0')).tif"), GDALarray, rates[:para][Ti(t)])
 end
@@ -58,6 +61,7 @@ using Shapefile, Plots, Colors, ColorSchemes
 using Plots: px
 
 # Plot setup
+aus = Lon(Between(113.0, 154.0)), Lat(Between(-44.0, -10.0))
 shp = Shapefile.Handle(joinpath(basedir, "data", "ausborder_polyline.shp"))
 shape_opts = (lw=0.5, color=RGB(0.3))
 plot_opts = (; 
@@ -70,10 +74,10 @@ plot_opts = (;
 )
 
 growthplot_opts = (; plot_opts..., tickfontcolor=RGB(0.5))
-p1 = plot(series[Ti(1)][:surface_temp][aus...]; 
+p1 = plot(ser[Ti(1)][:tavg][aus...]; 
     colorbar_title="Surface temperature", c=:acton, xtickfontcolor=RGB(1.0), growthplot_opts...
 )
-p2 = plot(growthrates[Ti(1), aus...]; 
+p2 = plot(rates[:host][Ti(1), aus...]; 
     colorbar_title="Intrinsic growth", c=:thermal, growthplot_opts...
 )
 map(p -> plot!(p, shp; shape_opts...), (p1, p2))
