@@ -3,7 +3,7 @@ using Plots: px
 Plots.theme(:default)
 
 # The directory for this project
-basedir = realpath(joinpath(@__DIR__))
+basedir = realpath(@__DIR__)
 
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))

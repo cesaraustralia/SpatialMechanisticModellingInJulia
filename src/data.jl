@@ -1,7 +1,7 @@
 using GeoData, ArchGDAL, Dates
 
 # The directory for this project
-basedir = realpath(joinpath(@__DIR__))
+basedir = realpath(joinpath(@__FILE__, ".."))
 # Load growthrates from tif files saved in growthmaps.jl
 datapath = joinpath(basedir, "output", "growthrates")
 # Set the timespan of the data. This will be looped by DynamicGrids

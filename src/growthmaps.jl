@@ -2,10 +2,10 @@
 
 using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots
 
-basedir = realpath(joinpath(@__DIR__))
+basedir = realpath(@__DIR__)
 
 # Set a path for downloaded raster files
-# ENV["RASTERDATASOURCES_PATH"] = "/home/YOUR_USERNAME/Data/"
+ENV["RASTERDATASOURCES_PATH"] = joinpath(basedir, "data")
 
 # Define julia object to hold parameters to for the simple growth model 
 # a struct with parameters, that inherits from GrowthModel
