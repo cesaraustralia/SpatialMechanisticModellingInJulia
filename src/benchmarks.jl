@@ -1,9 +1,9 @@
-using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random
+using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Pkg
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 CUDA.allowscalar(false)
 
 # The directory for this project
-basedir = realpath(@__DIR__)
+basedir = dirname(Pkg.project().path)
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))
 include(joinpath(basedir, "src", "data.jl"))

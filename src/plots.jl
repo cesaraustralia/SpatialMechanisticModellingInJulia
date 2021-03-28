@@ -1,9 +1,9 @@
-using Shapefile, Plots, Colors, ColorSchemes
+using Shapefile, Plots, Colors, ColorSchemes, Pkg
 using Plots: px
 Plots.theme(:default)
 
 # The directory for this project
-basedir = realpath(@__DIR__)
+basedir = dirname(Pkg.project().path)
 
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))

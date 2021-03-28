@@ -1,10 +1,10 @@
-using ColorSchemes, DynamicGridsGtk#, DynamicGridsInteract
+using ColorSchemes, Pkg, DynamicGridsGtk#, DynamicGridsInteract
 
 # Warning: Due to a threading bug in GTK, do not run benchmarks or use
 # proc=ThreadedCPU after running this file. They will crawl!
 
 # The directory for this project
-basedir = realpath(@__DIR__)
+basedir = dirname(Pkg.project().path)
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "models.jl"))
 include(joinpath(basedir, "src", "data.jl"))
@@ -46,4 +46,4 @@ output = GtkOutput((H=init_h, P=init_p);
     maxval=(carrycap, carrycap),
     scheme=(ColorSchemes.autumn, ColorSchemes.jet),
 )
-sim!(output, ruleset)
+sim!(output, host_para_ruleset)

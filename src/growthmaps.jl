@@ -1,8 +1,8 @@
 #### Simple Growth Model #####################
 
-using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots
+using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots, Pkg
 
-basedir = realpath(@__DIR__)
+basedir = dirname(Pkg.project().path)
 
 # Set a path for downloaded raster files
 ENV["RASTERDATASOURCES_PATH"] = joinpath(basedir, "data")
@@ -47,11 +47,13 @@ ser = series(WorldClim{Climate}, :tavg; month=1:12)
 @time rates = mapgrowth((host=host_model, para=para_model); series=ser, tspan=1:12)
 
 # Save tifs for each layer
-path = joinpath(basedir, "output/growthrates/")
-mkpath(path)
+hostpath = joinpath(basedir, "data/growthrates/host")
+parapath = joinpath(basedir, "data/growthrates/parasitoid")
+mkpath(parapath)
+mkpath(hostpath)
 for t in 1:12
-    write(joinpath(path, "host_$(lpad(t, 2, '0')).tif"), GDALarray, rates[:host][Ti(t)])
-    write(joinpath(path, "parasite_$(lpad(t, 2, '0')).tif"), GDALarray, rates[:para][Ti(t)])
+    write(joinpath(hostpath, "$(lpad(t, 2, '0')).tif"), GDALarray, rates[:host][Ti(t)])
+    write(joinpath(parapath, "$(lpad(t, 2, '0')).tif"), GDALarray, rates[:para][Ti(t)])
 end
 
 

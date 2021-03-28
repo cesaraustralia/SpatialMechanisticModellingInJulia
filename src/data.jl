@@ -1,15 +1,15 @@
-using GeoData, ArchGDAL, Dates
+using GeoData, ArchGDAL, Dates, Pkg
 
 # The directory for this project
-basedir = realpath(joinpath(@__FILE__, ".."))
+basedir = dirname(Pkg.project().path)
 # Load growthrates from tif files saved in growthmaps.jl
-datapath = joinpath(basedir, "output", "growthrates")
+datapath = joinpath(basedir, "data", "growthrates")
 # Set the timespan of the data. This will be looped by DynamicGrids
 # for years before or after this period.
 growthtimespan = DateTime(2020, 1):Month(1):DateTime(2020, 12)
 # Load, cut out Australia, and reorient the growth rate data
 aus = Lon(Between(113.0, 154.0)), Lat(Between(-44.0, -10.0))
-rate_h, rate_p = map((:host, :parasite)) do species
+rate_h, rate_p = map((:host, :parasitoid)) do species
     slices = map(readdir(joinpath(datapath, string(species)); join=true)) do path
         GDALarray(path; mappedcrs=EPSG(4326))[aus..., Band(1)] |>
             a -> replace_missing(a, 0.0f0) |>
@@ -30,7 +30,7 @@ init_h = zero(A)
 cairns = Lat(Between(-17, -20)), Lon(Between(144.0, 145.0))
 init_h[cairns...] .= carrycap
 
-# Initialise scattered parasite populations
+# Initialise scattered parasitoid populations
 init_p = (_ -> (r = rand(Float32); r < 0.1 ? carrycap * 1f-4 : 0.0f0)).(A)
 
 # Define initialisation and auxilary data for the simulations.
