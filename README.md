@@ -1,6 +1,6 @@
 Scripts to accompany the paper _"A working guide to spatial mechanistic
-modelling in Julia"_ by Rafael Schouten, James Maino, Virgile Baudrot and Paul Umina.
-
+modelling in Julia"_ by Rafael Schouten, James Maino, Virgile Baudrot and Paul
+Umina.
 
 ## Setup
 
@@ -10,23 +10,21 @@ We recommend Julia 1.6 or higher.
 
 Then, download or clone this repository from github.
 
-## Use
+# Use
 
-To e.g. build all the plots from the command line, navigate to the repository folder
-and run:
+To e.g. build all the plots from the command line, navigate to the downloaded
+repository folder and run:
 
 ```bash
 julia --project=. src/plots.jl
 ```
 
-Otherwise the scripts can be stepped through in Atom with Juno or VSCode with
-the julia-vscode plugin. This may be a better way to run the simulations
-defined in outputs.jl, and explore parameterisations. 
+Otherwise the scripts can be stepped through in VSCode with the julia-vscode
+plugin. This may be a better way to run the simulations defined in `outputs.jl`,
+and explore rules and parameterisations more interactively. 
 
-Be sure to start Julia in the project folder. Get a REPL using `Ctrl+shift+p` and search
-for julia repl in vscode, 
-
-and do:
+Be sure to start Julia in the project folder. The project directory should be
+activated automatically, if not, or in other editors, in the REPL type:
 
 ```julia
 ] 
@@ -34,15 +32,8 @@ activate .
 instantiate
 ```
 
-Or use:
-
-```julia
-julia --project=.
-```
-
-To activate the project before running any of the code. This will ensure that
-you have the exact versions of dependencies, which means these scripts will
-continue to work long into the future.
+This will ensure that you have the exact versions of all dependencies, which
+means these scripts will continue to work long into the future.
 
 ## Included scripts:
 
