@@ -11,10 +11,9 @@ growth = LogisticGrowth{:H}(
 allee = AlleeExtinction{:H}(; minfounders=20.0f0)
 
 #### Host local dispersal rule ########################
-hood = DispersalKernel(; 
-    radius=1, formulation=ExponentialKernel(0.25f0), cellsize=1.0f0
+localdisp = InwardsDispersal{:H}(;
+    radius=1, formulation=ExponentialKernel(0.25f0), cellsize=1.0f0,
 )
-localdisp = InwardsDispersal{:H}(hood)
 
 ### Wind dispersal rule ###############################
 wind = SetCell{:H}() do data, N, I 

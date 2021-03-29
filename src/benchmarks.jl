@@ -44,7 +44,7 @@ end
 ##### Benchmark setup methods #####
 
 function setupsim(rules;
-    tspan=DateTime(2020, 1, 1):Week(1):DateTime(2022, 1, 1),
+    tspan=DateTime(2020, 1):Week(1):DateTime(2022, 1),
     opt=NoOpt(), proc=SingleCPU(), size_ag,
     growthmin=-5.0f0, growthmax=0.2f0,
     output_type=ResultOutput
