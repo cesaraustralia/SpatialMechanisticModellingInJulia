@@ -1,4 +1,4 @@
-using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Pkg
+using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Pkg, Adapt
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 CUDA.allowscalar(false)
 
