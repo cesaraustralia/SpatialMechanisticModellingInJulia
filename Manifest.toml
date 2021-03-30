@@ -18,6 +18,11 @@ git-tree-sha1 = "8762ea6a862d3e9c32c0a2da155dbd14078f0ddc"
 uuid = "85c772de-338a-5e7f-b815-41e76c26ac1f"
 version = "0.2.2"
 
+[[AbstractTrees]]
+git-tree-sha1 = "03e0550477d86222521d254b741d470ba17ea0b5"
+uuid = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+version = "0.3.4"
+
 [[Adapt]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "ffcfa2d345aaee0ef3d8346a073d5dd03c983ebe"
@@ -62,18 +67,6 @@ deps = ["JSON", "Logging", "Printf", "Statistics", "UUIDs"]
 git-tree-sha1 = "8b8279aa9b15b4ee2d0e06bc5208f486a8ad65cc"
 uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 version = "0.6.0"
-
-[[BinDeps]]
-deps = ["Libdl", "Pkg", "SHA", "URIParser", "Unicode"]
-git-tree-sha1 = "1289b57e8cf019aede076edab0587eb9644175bd"
-uuid = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
-version = "1.0.2"
-
-[[Blink]]
-deps = ["Base64", "BinDeps", "Distributed", "JSExpr", "JSON", "Lazy", "Logging", "MacroTools", "Mustache", "Mux", "Reexport", "Sockets", "WebIO", "WebSockets"]
-git-tree-sha1 = "08d0b679fd7caa49e2bca9214b131289e19808c0"
-uuid = "ad839575-38b3-5650-b840-f874b8c74a25"
-version = "0.12.5"
 
 [[Blosc]]
 deps = ["Blosc_jll"]
@@ -295,7 +288,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[DynamicGrids]]
 deps = ["Adapt", "Colors", "ConstructionBase", "Crayons", "Dates", "DimensionalData", "DocStringExtensions", "FileIO", "FreeTypeAbstraction", "KernelAbstractions", "LinearAlgebra", "ModelParameters", "OffsetArrays", "REPL", "Random", "Reexport", "Requires", "Setfield", "StaticArrays", "Test", "UnicodeGraphics"]
-git-tree-sha1 = "effb79b598d6dc3944149c9d7a70ec5ae637dd68"
+path = "/home/raf/julia/DynamicGrids"
 uuid = "a5dba43e-3abc-5203-bfc5-584ca68d3f5b"
 version = "0.16.0"
 
@@ -305,17 +298,17 @@ git-tree-sha1 = "bc2cd94ee4ee783fdf9e4cf45aa8b5e6e347d7d2"
 uuid = "db222a54-9a4e-11e9-2a63-0f03ae0fd449"
 version = "0.5.7"
 
-[[DynamicGridsInteract]]
-deps = ["Blink", "DynamicGrids", "ImageShow", "Interact", "InteractBase", "InteractModels", "Mux", "WebIO", "WebSockets"]
-git-tree-sha1 = "119c69cc26122a8beef6890185e5e7ae0c69392e"
-uuid = "3ccff026-9a20-11e9-1704-43e1c6ed0af5"
-version = "0.5.3"
-
 [[EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "92d8f9f208637e8d2d28c664051a00569c01493d"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.1.5+1"
+
+[[EllipsisNotation]]
+deps = ["ArrayInterface"]
+git-tree-sha1 = "8041575f021cba5a099a456b4163c9a08b566a02"
+uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
+version = "1.1.0"
 
 [[Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -371,6 +364,12 @@ deps = ["Statistics"]
 git-tree-sha1 = "335bfdceacc84c5cdf16aadc768aa5ddfc5383cc"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 version = "0.8.4"
+
+[[FlameGraphs]]
+deps = ["AbstractTrees", "Colors", "FileIO", "FixedPointNumbers", "IndirectArrays", "LeftChildRightSiblingTrees", "Profile"]
+git-tree-sha1 = "99c43a8765095efa6ef76233d44a89e68073bd10"
+uuid = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
+version = "0.2.5"
 
 [[Flatten]]
 deps = ["ConstructionBase", "FieldMetadata"]
@@ -554,6 +553,12 @@ git-tree-sha1 = "f4ca0d233f89fb011d7cd9b26771f46ddc5bce67"
 uuid = "4c0ca9eb-093a-5379-98c5-f87ac0bbbf44"
 version = "1.1.7"
 
+[[GtkReactive]]
+deps = ["Cairo", "Colors", "Dates", "FixedPointNumbers", "Graphics", "Gtk", "IntervalSets", "Reactive", "Reexport", "RoundingIntegers"]
+git-tree-sha1 = "2a82c9204afbd8bfb39c0d6735bface4a3df9917"
+uuid = "27996c0f-39cd-5cc1-a27a-05f136f946b6"
+version = "1.0.5"
+
 [[HDF5]]
 deps = ["Blosc", "Compat", "HDF5_jll", "Libdl", "Mmap", "Random", "Requires"]
 git-tree-sha1 = "8a21f34a34491833bcda29a3ec2188b4ec6e558f"
@@ -577,12 +582,6 @@ deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Gettext_jl
 git-tree-sha1 = "90bed5fc61d12d10832ebf988988104888eebaca"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.6.1+10"
-
-[[Hiccup]]
-deps = ["MacroTools", "Test"]
-git-tree-sha1 = "6187bb2d5fcbb2007c39e7ac53308b0d371124bd"
-uuid = "9fb69e20-1954-56bb-a84f-559cc56a8ff7"
-version = "0.2.2"
 
 [[ICU_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -613,11 +612,10 @@ git-tree-sha1 = "1c0a2295cca535fabaf2029062912591e9b61987"
 uuid = "c73af94c-d91f-53ed-93a7-00f77d67a9d7"
 version = "6.9.10-12+3"
 
-[[ImageShow]]
-deps = ["Base64", "FileIO", "ImageCore", "Requires"]
-git-tree-sha1 = "c9df184bc7c2e665f971079174aabb7d18f1845f"
-uuid = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
-version = "0.2.3"
+[[IndirectArrays]]
+git-tree-sha1 = "c2a145a145dc03a7620af1444e0264ef907bd44f"
+uuid = "9b13fd28-a010-5f03-acff-a1bbcff69959"
+version = "0.5.1"
 
 [[IniFile]]
 deps = ["Test"]
@@ -646,6 +644,12 @@ version = "0.3.2"
 [[InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[IntervalSets]]
+deps = ["Dates", "EllipsisNotation", "Statistics"]
+git-tree-sha1 = "3cc368af3f110a767ac786560045dceddfc16758"
+uuid = "8197267c-284f-5f27-9208-e0e47529a953"
+version = "0.5.3"
 
 [[IterTools]]
 git-tree-sha1 = "05110a2ab1fc5f932622ffea2a003221f4782c18"
@@ -727,15 +731,15 @@ git-tree-sha1 = "fbc08b5a78e264ba3d19da90b36ce1789ca67a40"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
 version = "0.14.11"
 
-[[Lazy]]
-deps = ["MacroTools"]
-git-tree-sha1 = "1370f8202dac30758f3c345f9909b97f53d87d3f"
-uuid = "50d2b5c4-7a5e-59d5-8109-a42b560f39c0"
-version = "0.15.1"
-
 [[LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+
+[[LeftChildRightSiblingTrees]]
+deps = ["AbstractTrees"]
+git-tree-sha1 = "71be1eb5ad19cb4f61fa8c73395c0338fd092ae0"
+uuid = "1d6d02ad-be62-4b6b-8a6d-2f90e265016e"
+version = "0.1.2"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -908,18 +912,6 @@ version = "0.2.4"
 [[MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 
-[[Mustache]]
-deps = ["Printf", "Tables"]
-git-tree-sha1 = "36995ef0d532fe08119d70b2365b7b03d4e00f48"
-uuid = "ffc61752-8dc7-55ee-8c37-f3e9cdd09e70"
-version = "1.0.10"
-
-[[Mux]]
-deps = ["AssetRegistry", "Base64", "HTTP", "Hiccup", "Pkg", "Sockets", "WebSockets"]
-git-tree-sha1 = "2578b3cd03e4f568f213c7d51b2118f9e81c2617"
-uuid = "a975b10e-0019-58db-a62f-e48ff68538c9"
-version = "0.7.5"
-
 [[NCDatasets]]
 deps = ["CFTime", "DataStructures", "Dates", "NetCDF_jll", "Printf"]
 git-tree-sha1 = "b71d83c87d80f5c54c55a7a9a3aa42bf931c72aa"
@@ -1084,6 +1076,16 @@ version = "0.10.1"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
+[[ProfileView]]
+deps = ["Cairo", "Colors", "FileIO", "FlameGraphs", "Graphics", "Gtk", "GtkReactive", "InteractiveUtils", "IntervalSets", "Profile", "UUIDs"]
+git-tree-sha1 = "caa269e6f86900de232dffaf7e66edfe9414b007"
+uuid = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
+version = "0.6.9"
+
 [[ProgressMeter]]
 deps = ["Distributed", "Printf"]
 git-tree-sha1 = "6e9c89cba09f6ef134b00e10625590746ba1e036"
@@ -1128,6 +1130,12 @@ git-tree-sha1 = "926327390ca5db8903b0756f9f61657770ed847d"
 uuid = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
 version = "0.2.3"
 
+[[Reactive]]
+deps = ["DataStructures", "Distributed", "Test"]
+git-tree-sha1 = "5862d915387ebb954016f50a88e34f79a9e5fcd2"
+uuid = "a223df75-4e93-5b7c-acf9-bdd599c0f4de"
+version = "0.8.3"
+
 [[RecipesBase]]
 git-tree-sha1 = "b3fb709f3c97bfc6e948be68beeecb55a0b340ae"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
@@ -1168,6 +1176,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "68db32dff12bb6127bac73c209881191bf0efbb7"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.3.0+0"
+
+[[RoundingIntegers]]
+deps = ["Test"]
+git-tree-sha1 = "293ba0ab32218b9ffd596040224228def84f8da0"
+uuid = "d5f540fe-1c90-5db3-b776-2e2f362d9394"
+version = "0.2.0"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -1295,12 +1309,6 @@ deps = ["Printf"]
 git-tree-sha1 = "32cdbe6cd2d214c25a0b88f985c9e0092877c236"
 uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 version = "0.5.8"
-
-[[URIParser]]
-deps = ["Unicode"]
-git-tree-sha1 = "53a9f49546b8d2dd2e688d216421d050c9a31d0d"
-uuid = "30578b45-9adc-5946-b283-645ec420af67"
-version = "0.4.1"
 
 [[URIs]]
 git-tree-sha1 = "7855809b88d7b16e9b029afd17880930626f54a2"
