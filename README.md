@@ -12,19 +12,9 @@ Then, download or clone this repository from github.
 
 # Use
 
-To e.g. build all the plots from the command line, navigate to the downloaded
-repository folder and run:
-
-```bash
-julia --project=. src/plots.jl
-```
-
-Otherwise the scripts can be stepped through in VSCode with the julia-vscode
-plugin. This may be a better way to run the simulations defined in `outputs.jl`,
-and explore rules and parameterisations more interactively. 
-
-Be sure to start Julia in the project folder. The project directory should be
-activated automatically, if not, or in other editors, in the REPL type:
+To install exact versions of all packages, start a julia REPL in the downloaded
+project folder, and in package mode (get there with `]`) activate and
+instantiate the project:
 
 ```julia
 ] 
@@ -32,15 +22,37 @@ activate .
 instantiate
 ```
 
+Then, to e.g. build all the plots from the command line, in the 
+repository folder you can run:
+
+```bash
+julia --project=. src/plots.jl
+```
+
+Otherwise the scripts can be stepped through in an editor like VSCode with the
+julia-vscode plugin. This may be a better way to run the simulations defined in
+`outputs.jl`, and explore rules and parameterisations more interactively. 
+
+Be sure to start Julia in the project folder. The project directory should be
+activated automatically in VSCode, if not, or in other editors, in the REPL type:
+
+```julia
+] 
+activate .
+```
+
 This will ensure that you have the exact versions of all dependencies, which
 means these scripts will continue to work long into the future.
 
-## Included scripts:
+## Included scripts
 
-- models.jl: defines the rule components for the models we simulate.
-- data.jl: prepares simulation data.
+To run directly:
 - plots.jl: creates most plots seen in paper from models.jl/data.jl.
 - benchmarks.jl: runs simulation bechmarks and creates benchmark plot.
 - outputs.jl: provides some interface visualisations of the simulations.
 - growthmaps.jl: shows how growth-rate data used to drive growth models is generated.
 
+
+Rules and data setup
+- rules.jl: defines the rule components for the models we simulate.
+- data.jl: prepares simulation data.
