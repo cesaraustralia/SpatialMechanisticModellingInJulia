@@ -8,12 +8,12 @@ Umina.
 
 We recommend Julia 1.6 or higher. 
 
-Then, download or clone this repository from github.
+Then, download or clone this code repository locally.
 
-# Use
+## Use
 
 To install exact versions of all packages, start a julia REPL in the downloaded
-project folder, and in package mode (get there with `]`) activate and
+project folder, and in package mode (with `]`) activate and
 instantiate the project:
 
 ```julia
@@ -29,7 +29,7 @@ repository folder you can run:
 julia --project=. src/plots.jl
 ```
 
-Otherwise the scripts can be stepped through in an editor like VSCode with the
+Scripts can also be stepped through in an editor like VSCode, with the
 julia-vscode plugin. This may be a better way to run the simulations defined in
 `outputs.jl`, and explore rules and parameterisations more interactively. 
 
@@ -47,12 +47,11 @@ means these scripts will continue to work long into the future.
 ## Included scripts
 
 To run directly:
-- plots.jl: creates most plots seen in paper from models.jl/data.jl.
+- plots.jl: creates most plots seen in paper from rules.jl/data.jl.
 - benchmarks.jl: runs simulation bechmarks and creates benchmark plot.
 - outputs.jl: provides some interface visualisations of the simulations.
-- growthmaps.jl: shows how growth-rate data used to drive growth models is generated.
+- growthmaps.jl: builds the growth-rate data used to drive growth models.
 
-
-Rules and data setup
-- rules.jl: defines the rule components for the models we simulate.
+Called by the other scripts:
+- rules.jl: defines the rules used in the simulations.
 - data.jl: prepares simulation data.
