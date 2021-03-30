@@ -1,6 +1,7 @@
-#### Simple Growth Model #####################
+#### Simple growth-rate model #####################
 
 using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots, Pkg
+pyplot()
 
 basedir = dirname(Pkg.project().path)
 
