@@ -128,9 +128,9 @@ version = "0.3.5"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "0893f8d90331a0f5223c7ef2a8868464394a886c"
+git-tree-sha1 = "644c24cd6344348f1c645efab24b707088be526a"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "0.9.33"
+version = "0.9.34"
 
 [[CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
@@ -288,9 +288,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[DynamicGrids]]
 deps = ["Adapt", "Colors", "ConstructionBase", "Crayons", "Dates", "DimensionalData", "DocStringExtensions", "FileIO", "FreeTypeAbstraction", "KernelAbstractions", "LinearAlgebra", "ModelParameters", "OffsetArrays", "REPL", "Random", "Reexport", "Requires", "Setfield", "StaticArrays", "Test", "UnicodeGraphics"]
-path = "/home/raf/julia/DynamicGrids"
+git-tree-sha1 = "8a6fcd125181283322f4ee5fef74d754e1b4c9e2"
 uuid = "a5dba43e-3abc-5203-bfc5-584ca68d3f5b"
-version = "0.16.0"
+version = "0.16.1"
 
 [[DynamicGridsGtk]]
 deps = ["Cairo", "DynamicGrids", "Graphics", "Gtk"]
@@ -502,9 +502,9 @@ version = "0.5.4"
 
 [[GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
-git-tree-sha1 = "c7f81b22b6c255861be4007a16bfdeb60e1c7f9b"
+git-tree-sha1 = "4136b8a5668341e58398bb472754bff4ba0456ff"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.3.11"
+version = "0.3.12"
 
 [[Gettext_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -692,9 +692,9 @@ version = "0.8.11"
 
 [[KernelAbstractions]]
 deps = ["Adapt", "CUDA", "Cassette", "InteractiveUtils", "MacroTools", "SpecialFunctions", "StaticArrays", "UUIDs"]
-git-tree-sha1 = "fa2b7f835f2a9579a86a3bf26fb7ee5b75a68202"
+git-tree-sha1 = "f16c8dfdd75ae4fa927fcf3aa71e1dbbd195befb"
 uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-version = "0.5.4"
+version = "0.5.5"
 
 [[Knockout]]
 deps = ["JSExpr", "JSON", "Observables", "Test", "WebIO"]
@@ -727,9 +727,9 @@ version = "1.2.1"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "fbc08b5a78e264ba3d19da90b36ce1789ca67a40"
+git-tree-sha1 = "7c72983c6daf61393ee8a0b29a419c709a06cede"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.14.11"
+version = "0.14.12"
 
 [[LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
