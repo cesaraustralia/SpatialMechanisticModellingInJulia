@@ -1,0 +1,31 @@
+name: CI
+on:
+  - push
+  - pull_request
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        version:
+          - '1.6'
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+        arch:
+          - x64
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - name: Run plots.jl
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); include("src/plots.jl")'
+        shell: bash
