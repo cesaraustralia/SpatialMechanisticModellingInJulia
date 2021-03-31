@@ -21,12 +21,11 @@ gpu_wind = SetNeighbors{Tuple{:rand,:H}}() do data, hood, (rand, H), I
     # Ignore empty cells
     H > zero(H) || return nothing
     # Randomise a dispersal event using cell value of rand
-    rand < 0.02oneunit(rand) || return nothing
-    x = 10oneunit(H) # Randomise a destination
+    rand < 0.02f0 || return nothing
     # Get random values for jump from the surrounding grid
     randi, randj = (I[1], I[2] + 1), (I[1] + 1, I[2] + 1)
-    dest = I .+ (unsafe_trunc(Int, data[:rand][randi...] * 2x - x),
-                 unsafe_trunc(Int, data[:rand][randj...] * 2x - x))
+    dest = I .+ (unsafe_trunc(Int, data[:rand][randi...] * 40 - 20),
+                 unsafe_trunc(Int, data[:rand][randj...] * 40 - 20))
     # Update spotted cell if it's on the grid
     if isinbounds(data[:H], dest)
         @inbounds add!(data[:H], H / 10, dest...)
@@ -50,7 +49,7 @@ function setupsim(rules;
     tspan=DateTime(2020, 1):Week(1):DateTime(2022, 1),
     opt=NoOpt(), proc=SingleCPU(), size_ag,
     growthmin=-5.0f0, growthmax=0.2f0,
-    output_type=ResultOutput
+    output_type=ResultOutput,
 )
     # Take top right corner to make a square - but most of australia
     ax = 1:200, lastindex(init_h, 2)-199:lastindex(init_h, 2)
@@ -122,16 +121,9 @@ rulegroups = (
                 gpu=(randomgrid, gpu_wind, localdisp, localdisp_p, Chain(allee, growth, allee_p, parasitism))),
 )
 
-# Run all variants in the REPL to see that they make sense
-for key in keys(rulegroups), size_ag in sizes, opt in values(opts), proc in values(procs)
-    @show key
-    o, rs = setupsim(rulegroups[key], size_ag=size_ag)#, output_type=REPLOutput)
-    sim!(o, rs; opt=opt, proc=proc)
-end
-
 suites = map(suite, rulegroups)
+map(tune!, suites)
 results = map(su -> run(su, verbose=true), suites)
-
 
 ##### Benchmark plot #####
 
@@ -145,7 +137,11 @@ function plotbench(b, key)
                 prockey == :gpu && continue
                 lab = uppercasefirst(string("Sparse ", prockey))
             else
-                lab = uppercasefirst(string(prockey))
+                lab = if prockey == :gpu
+                    uppercase(string(prockey))
+                else
+                    uppercasefirst(string(prockey))
+                end
             end
             times = map(sizes) do (s, ag)
                 median(b.data[string(optkey)].data[(string(prockey), s)].times) / 1e9
@@ -158,7 +154,7 @@ function plotbench(b, key)
     end
     plot(p;
         title=string(key),
-        ylims=(1e-3, 100.0),
+        ylims=(1e-3, 10.0),
         yaxis=:log,
         titlefontsize=10,
         guidefontsize=9,
@@ -172,11 +168,18 @@ function plotbench(b, key)
         xticks=[100, 200, 400, 800],
         xlabel=(key in (:Combined, :Parasitism) ? "Size" : ""),
         ylabel=(key in (:Wind, :Combined) ? "Time in seconds" : ""),
-        # xformatter=(key in (:Combined, :Parasitism) ? _->"" : false),
-        # yticks=(key in (:Wind, :Combined) ? true : false),
     )
 end
 
-plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(500, 500))
+plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 530))
 
 savefig("output/benchmarks.png")
+results[:Parasitism]["noopt"]
+
+using BenchmarkTools
+output = ResultOutput((H=init_h, P=init_p);
+    tspan=DateTime(2020, 1):Week(1):DateTime(2022, 1),
+    aux=(rH=rate_h, rP=rate_p,), mask=mask,
+)
+@btime sim!(output, (localdisp, allee, growth); proc=SingleCPU());
+@btime sim!(output, (localdisp, allee, growth); proc=ThreadedCPU());
