@@ -7,7 +7,7 @@ Plots.theme(:default)
 basedir = dirname(Pkg.project().path)
 
 # Inlude models and data scripts
-include(joinpath(basedir, "src", "models.jl"))
+include(joinpath(basedir, "src", "rules.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
 # Save gifs, as in the paper

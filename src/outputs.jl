@@ -6,7 +6,7 @@ using ColorSchemes, Pkg, DynamicGridsGtk#, DynamicGridsInteract
 # The directory for this project
 basedir = dirname(Pkg.project().path)
 # Inlude models and data scripts
-include(joinpath(basedir, "src", "models.jl"))
+include(joinpath(basedir, "src", "rules.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
 tspan = DateTime(2020, 1):Day(7):DateTime(2040, 1)
