@@ -2,19 +2,18 @@ Scripts to accompany the paper _"A working guide to spatial mechanistic
 modelling in Julia"_ by Rafael Schouten, James Maino, Virgile Baudrot and Paul
 Umina.
 
+These scripts should be reproducible on all systems, including all the binaries
+used by various packages.
+
 ## Setup
 
 [Download](https://julialang.org/downloads/) and add Julia to your system.
 
-We recommend Julia 1.6 or higher. 
+Julia 1, from v1.6 or higher is required.
 
-Then, download or clone this code repository locally.
-
-## Use
-
-To install exact versions of all packages, start a julia REPL in the downloaded
-project folder, and in package mode (with `]`) activate and
-instantiate the project:
+Then, download or clone this code repository locally. To install exact versions
+of all packages, start a julia REPL in the downloaded project folder, and in
+package mode (with `]`) activate and instantiate the project:
 
 ```julia
 ] 
@@ -22,19 +21,28 @@ activate .
 instantiate
 ```
 
-Then, to e.g. build all the plots from the command line, in the 
-repository folder you can run:
+Or from a command line, in the repository directory:
+
+```bash
+julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
+```
+
+## Use
+
+To e.g. build all the plots from the command line, in the repository directory
+you can run:
 
 ```bash
 julia --project=. src/plots.jl
 ```
 
 Scripts can also be stepped through in an editor like VSCode, with the
-julia-vscode plugin. This may be a better way to run the simulations defined in
-`outputs.jl`, and explore rules and parameterisations more interactively. 
+julia-vscode plugin. This may be a better way to explore and analyse the code,
+and to run the simulations in `outputs.jl`. 
 
 Be sure to start Julia in the project folder. The project directory should be
-activated automatically in VSCode, if not, or in other editors, in the REPL type:
+activated automatically in VSCode, if not, or in other editors, in the REPL
+type:
 
 ```julia
 ] 
@@ -42,7 +50,7 @@ activate .
 ```
 
 This will ensure that you have the exact versions of all dependencies, which
-means these scripts will continue to work long into the future.
+means these scripts will continue to work into the future.
 
 ## Included scripts
 
