@@ -1,7 +1,6 @@
 using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Pkg, Adapt
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 using Plots: px
-pyplot()
 theme(:vibrant)
 CUDA.allowscalar(false)
 

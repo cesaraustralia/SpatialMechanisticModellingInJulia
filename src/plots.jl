@@ -1,6 +1,5 @@
 using Shapefile, Plots, Colors, ColorSchemes, Pkg
 using Plots: px
-pyplot()
 Plots.theme(:default)
 
 # The directory for this project
@@ -47,13 +46,10 @@ sim!(host_para_output, localdisp, wind, allee, growth, localdisp_p, allee_p, par
 
 # Default map options
 simplot_opts = (; 
-    # left_margin=-50px,
     clims=(0, carrycap),
     legend=:none,
     showaxis=false,
     ticks=false,
-    # xtickfontcolor=RGB(0.5),
-    # ytickfontcolor=RGB(0.5),
     yguide="",
     plot_opts...
 )
