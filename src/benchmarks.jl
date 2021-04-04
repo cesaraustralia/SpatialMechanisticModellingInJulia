@@ -37,8 +37,9 @@ _rand!(A) = rand!(A)
 _rand!(A::CuArray) = CUDA.rand!(A)
 
 # A rule that just fills the random grid
-randomgrid = SetGrid{Tuple{},:rand}() do rand
-    _rand!(parent(rand))
+randomgrid = SetGrid{Tuple{},:rand}() do randgrid
+    # `parent` is so we write rand to the whole grid, including any padding
+    _rand!(parent(randgrid))
 end
 
 
@@ -54,11 +55,11 @@ function setupsim(rules;
     ax = 1:200, lastindex(init_h, 2)-199:lastindex(init_h, 2)
     sze = size_ag[1]
     ag = size_ag[2]
-    hpop = parent(ag(init_h[ax...]))
+    hpop = ag(init_h[ax...])
     @assert size(hpop, 1) == size(hpop, 2) == sze
     init = (;
-        H=parent(ag(init_h[ax...])),
-        P=parent(ag(init_p[ax...])),
+        H=ag(init_h[ax...]),
+        P=ag(init_p[ax...]),
         rand=rand(Float32, sze, sze)
     )
     o = output_type(init;
@@ -98,7 +99,7 @@ end
 
 ##### Scenarios and benchmark #####
 
-procs = (single=SingleCPU(), threaded=ThreadedCPU(), gpu=CuGPU(), )
+procs = (single=SingleCPU(), threaded=ThreadedCPU(), gpu=CuGPU(),)
 opts = (noopt=NoOpt(), sparseopt=SparseOpt())
 # We use a an anonymous function to scale a 200*200 array to the specified size
 sizes = (
@@ -173,12 +174,3 @@ end
 plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 530))
 
 savefig("output/benchmarks.png")
-results[:Parasitism]["noopt"]
-
-using BenchmarkTools
-output = ResultOutput((H=init_h, P=init_p);
-    tspan=DateTime(2020, 1):Week(1):DateTime(2022, 1),
-    aux=(rH=rate_h, rP=rate_p,), mask=mask,
-)
-@btime sim!(output, (localdisp, allee, growth); proc=SingleCPU());
-@btime sim!(output, (localdisp, allee, growth); proc=ThreadedCPU());
