@@ -16,25 +16,24 @@ localdisp = InwardsDispersal{:H}(;
 )
 
 ### Wind dispersal rule ###############################
-wind = SetCell{:H}() do data, N, I 
-    N > zero(N) || return nothing # Ignore empty cells
+wind = SetCell{:H}() do data, H, I 
+    H > zero(H) || return nothing # Ignore empty cells
     rand() < 0.01f0 || return nothing # Randomise a dispersal event
     # Randomise a destination
     dest = I .+ (rand(-20:20), rand(-20:20))
-    dest, isinbounds = inbounds(data, dest)
-    if isinbounds
+    if isinbounds(data, dest)
         # Update dest cell and current cell, if dest is on the grid
-        @inbounds add!(data[:H], N / 10, dest...)
-        @inbounds sub!(data[:H], N / 10, I...)
+        @inbounds add!(data[:H], H / 10, dest...)
+        @inbounds sub!(data[:H], H / 10, I...)
     end
     return nothing
 end
 
 #### Parasitoid growth rule #####################
-struct Parasitism{R,W,GR,M,H,A,B} <: CellRule{R,W}
+struct Parasitism{R,W,GR,M,HS,A,B} <: CellRule{R,W}
     rate::GR
     mortality::M
-    halfsat::H
+    halfsat::HS
     a::A
     b::B
 end
@@ -55,7 +54,7 @@ function Dispersal.applyrule(data, rule::Parasitism, (H, P), I)
 end
 
 # Construct a Parasitism rule
-parasitism = Parasitism{Tuple{:H,:P}}(Aux{:rP}(), 0.2f0, 1f8, 2.0f0, 5.0f0)
+parasitism = Parasitism{Tuple{:H,:P}}(Aux(:rP), 0.2f0, 1f8, 2.0f0, 5.0f0)
 
 #### Parasitoid local dispersal rules ##################
 localdisp_p = InwardsDispersal{:P}(; 
