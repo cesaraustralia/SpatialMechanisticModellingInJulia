@@ -31,7 +31,7 @@ cairns = Lat(Between(-17, -20)), Lon(Between(144.0, 145.0))
 init_h[cairns...] .= carrycap
 
 # Initialise scattered parasitoid populations
-init_p = (_ -> (r = rand(Float32); r < 0.1 ? carrycap * 1f-4 : 0.0f0)).(A)
+init_p = (_ -> (r = rand(); r < 0.1 ? carrycap * 1f-4 : 0.0f0)).(A)
 
 # Define initialisation and auxilary data for the simulations.
 # :rand is only required on GPU
