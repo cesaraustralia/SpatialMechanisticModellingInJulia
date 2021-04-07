@@ -35,9 +35,9 @@ uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 
 [[ArrayInterface]]
 deps = ["IfElse", "LinearAlgebra", "Requires", "SparseArrays", "Static"]
-git-tree-sha1 = "ce17bad65d0842b34a15fffc8879a9f68f08a67f"
+git-tree-sha1 = "2fbfa5f372352f92191b63976d070dc7195f47a4"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "3.1.6"
+version = "3.1.7"
 
 [[Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -251,9 +251,9 @@ version = "0.2.7"
 
 [[Dispersal]]
 deps = ["ConstructionBase", "Dates", "DimensionalData", "Distributions", "DocStringExtensions", "DynamicGrids", "LinearAlgebra", "ModelParameters", "Reexport", "Setfield", "StaticArrays", "Statistics"]
-git-tree-sha1 = "e2f5ee4daf39e5a5d90c74e69536c8d428ef13aa"
+git-tree-sha1 = "967d8fbc4c55627e0c376310849e1125cbae3135"
 uuid = "8797f018-3445-11e9-3969-c13eb94a0661"
-version = "0.4.0"
+version = "0.4.1"
 
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -277,7 +277,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[DynamicGrids]]
 deps = ["Adapt", "Colors", "ConstructionBase", "Crayons", "Dates", "DimensionalData", "DocStringExtensions", "FileIO", "FreeTypeAbstraction", "KernelAbstractions", "LinearAlgebra", "ModelParameters", "OffsetArrays", "REPL", "Random", "Reexport", "Requires", "Setfield", "StaticArrays", "Test", "UnicodeGraphics"]
-git-tree-sha1 = "d2ab477b7c27aced04cd70fd2aa068f4e39fa2ac"
+path = "/home/raf/.julia/dev/DynamicGrids"
 uuid = "a5dba43e-3abc-5203-bfc5-584ca68d3f5b"
 version = "0.17.0"
 
@@ -1237,9 +1237,9 @@ version = "1.7.0"
 
 [[UnitfulRecipes]]
 deps = ["RecipesBase", "Unitful"]
-git-tree-sha1 = "10472e43ce6cf2bf3cb0d062cf5b774d7b5fc2fe"
+git-tree-sha1 = "a934a38584f9e5dee8f339c29f40fa64a9bebed1"
 uuid = "42071c24-d89e-48dd-8a24-8a12d9b8861f"
-version = "1.1.1"
+version = "1.2.0"
 
 [[Wayland_jll]]
 deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
