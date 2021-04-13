@@ -165,12 +165,12 @@ function plotbench(b, key)
         legendfontcolor=RGB(0.2),
         minorgrid=false,
         grid=true,
+        xrotation=60,
         xticks=[100, 200, 400, 800, 1600],
-        xlabel=(key in (:Combined, :Parasitism) ? "Size" : ""),
+        xlabel="Grid size",
         ylabel=(key in (:Wind, :Combined) ? "Time in seconds" : ""),
     )
 end
-
-plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 530))
+plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 600))
 
 savefig("output/benchmarks.png")
