@@ -1,9 +1,8 @@
-using BenchmarkTools, Plots, KernelAbstractions, CUDA, Random, Pkg, Adapt
+using BenchmarkTools, Plots, CUDAKernels, CUDA, Random, Pkg, Adapt
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 using Plots: px
 theme(:vibrant)
 CUDA.allowscalar(false)
-
 # The directory for this project
 basedir = dirname(Pkg.project().path)
 # Inlude models and data scripts
@@ -107,6 +106,7 @@ sizes = (
     200 => A -> A,
     400 => A -> disaggregate(Center(), A, (Lat(2), Lon(2), Ti(1))),
     800 => A -> disaggregate(Center(), A, (Lat(4), Lon(4), Ti(1))),
+    1600 => A -> disaggregate(Center(), A, (Lat(8), Lon(8), Ti(1))),
 )
 
 # CPU/GPU rules are separated as the best optimisations are not the same on CPU and GPU.
@@ -165,7 +165,7 @@ function plotbench(b, key)
         legendfontcolor=RGB(0.2),
         minorgrid=false,
         grid=true,
-        xticks=[100, 200, 400, 800],
+        xticks=[100, 200, 400, 800, 1600],
         xlabel=(key in (:Combined, :Parasitism) ? "Size" : ""),
         ylabel=(key in (:Wind, :Combined) ? "Time in seconds" : ""),
     )
