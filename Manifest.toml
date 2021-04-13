@@ -277,9 +277,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[DynamicGrids]]
 deps = ["Adapt", "Colors", "ConstructionBase", "Crayons", "Dates", "DimensionalData", "DocStringExtensions", "FileIO", "FreeTypeAbstraction", "KernelAbstractions", "LinearAlgebra", "ModelParameters", "OffsetArrays", "REPL", "Random", "Reexport", "Requires", "Setfield", "StaticArrays", "Test", "UnicodeGraphics"]
-path = "/home/raf/.julia/dev/DynamicGrids"
+git-tree-sha1 = "d61335009eecbdf34c01013a5358ec7e6cdeaaf3"
 uuid = "a5dba43e-3abc-5203-bfc5-584ca68d3f5b"
-version = "0.17.0"
+version = "0.17.1"
 
 [[DynamicGridsGtk]]
 deps = ["Cairo", "DynamicGrids", "Graphics", "Gtk"]
