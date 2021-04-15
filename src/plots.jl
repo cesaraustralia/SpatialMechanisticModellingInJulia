@@ -77,7 +77,7 @@ col_p = cgrad(ColorSchemes.diverging_linear_bjr_30_55_c53_n256)
 no_x = (xguide="", xtickfontcolor=RGB(1.0))
 hp1, hp2, hp3 = map((t1, t2, t3), (no_x, no_x, ())) do t, kw
     hp = Plots.plot(host_para_output[Ti(Near(t))][:H]; xguide="Host", hp_plot_opts..., kw..., yguide=year(t)),
-         Plots.plot(host_para_output[Ti(Near(t))][:P]; color=col_p, xguide="Parasite", hp_plot_opts..., ytickfontcolor=RGB(1.0), kw...)
+         Plots.plot(host_para_output[Ti(Near(t))][:P]; color=col_p, xguide="Parasitoid", hp_plot_opts..., ytickfontcolor=RGB(1.0), kw...)
     map(x -> Plots.plot!(x, shp; shape_opts...), hp)
 end
 host_para_plot = Plots.plot(hp1..., hp2..., hp3...; layout=(3, 2), size=(900, 900))
