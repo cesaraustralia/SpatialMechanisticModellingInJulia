@@ -47,6 +47,7 @@ type:
 ```julia
 ] 
 activate .
+instantiate
 ```
 
 This will ensure that you have the exact versions of all dependencies, which
