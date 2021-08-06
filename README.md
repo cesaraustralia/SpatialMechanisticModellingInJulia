@@ -9,7 +9,7 @@ used by various packages.
 
 [Download](https://julialang.org/downloads/) and add Julia to your system.
 
-Julia 1, from v1.6 or higher is required.
+Julia v1.6 is required.
 
 Then, download or clone this code repository locally. To install exact versions
 of all packages, start a julia REPL in the downloaded project folder, and in
@@ -47,6 +47,7 @@ type:
 ```julia
 ] 
 activate .
+instantiate
 ```
 
 This will ensure that you have the exact versions of all dependencies, which
