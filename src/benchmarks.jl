@@ -9,6 +9,10 @@ basedir = dirname(Pkg.project().path)
 include(joinpath(basedir, "src", "rules.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
+# Define rules and simulation data
+growth, allee, localdisp, wind, parasitism, localdisp_p, allee_p, carrycap = define_rules()
+init_h, init_p, rate_h, rate_p, mask = load_data(basedir, carrycap)
+
 ##### GPU wind rule #####
 
 # We can't use `rand` directly _inside_ a GPU kernel, as of February 2021.

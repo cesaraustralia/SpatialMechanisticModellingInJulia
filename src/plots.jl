@@ -9,8 +9,16 @@ basedir = dirname(Pkg.project().path)
 include(joinpath(basedir, "src", "rules.jl"))
 include(joinpath(basedir, "src", "data.jl"))
 
+# Define rules and simulation data
+growth, allee, localdisp, wind, parasitism, localdisp_p, allee_p, carrycap = define_rules()
+init_h, init_p, rate_h, rate_p, mask = load_data(basedir, carrycap)
+
+# Define NamedTuples of initialisation and auxilary data for the simulations.
+initdata = (; H=init_h, P=init_p)
+auxdata = (; rH=rate_h, rP=rate_p)
+
 # Save gifs, as in the paper
-output = GifOutput((H=init_h, P=init_p); 
+output = GifOutput(initdata; 
     filename=joinpath(basedir, "output", "host_parasitoid.gif"), 
     tspan=DateTime(2020, 1):Day(7):DateTime(2030, 1),
     aux=(rH=rate_h, rP=rate_p,), mask=mask, # See S3
@@ -33,7 +41,7 @@ plot_opts = (;
 #### Host simulation plots ##########################################
 tspan = DateTime(2020, 1):Day(7):DateTime(2030, 1)
 kw = (; 
-    aux=(; rH=rate_h, rP=rate_p), mask=mask, tspan=tspan
+    aux=auxdata, mask=mask, tspan=tspan
 )
 wind_output = ArrayOutput(initdata; kw...)
 localdisp_output = ArrayOutput(initdata; kw...)
