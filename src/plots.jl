@@ -17,12 +17,14 @@ init_h, init_p, rate_h, rate_p, mask = load_data(basedir, carrycap)
 initdata = (; H=init_h, P=init_p)
 auxdata = (; rH=rate_h, rP=rate_p)
 
-# Save gifs, as in the paper
+# Save gifs, as in the paper but with colors
 output = GifOutput(initdata; 
     filename=joinpath(basedir, "output", "host_parasitoid.gif"), 
     tspan=DateTime(2020, 1):Day(7):DateTime(2030, 1),
     aux=(rH=rate_h, rP=rate_p,), mask=mask, # See S3
     minval=(0.0, 0.0), maxval=(carrycap, carrycap),
+    scheme=(ColorSchemes.inferno, ColorSchemes.diverging_linear_bjr_30_55_c53_n256),
+    text=nothing,
 ) 
 sim!(output, (wind, localdisp, allee, growth, localdisp_p, allee_p, parasitism))
 
