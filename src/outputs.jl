@@ -1,4 +1,4 @@
-using ColorSchemes, Pkg, DynamicGridsGtk#, DynamicGridsInteract
+using ColorSchemes, Pkg, DynamicGridsGtk
 
 # Warning: Due to a threading bug in GTK, do not run benchmarks or use
 # proc=ThreadedCPU after running this file. They will crawl!
@@ -22,12 +22,6 @@ tspan = DateTime(2020, 1):Day(7):DateTime(2040, 1)
 viewer = CopyTo{:rH}(Aux(:rH))
 host_ruleset = Ruleset(growth, localdisp, allee, viewer)
 
-# Comment/uncomment these to choose the interface
-# To generate sliders in ElectronOuput, model parameters
-# need to be defined as: `Param(val; bounds=(lower, upper))` - see the 
-# ModelParameters.jl docs for details.
-
-# output = ElectronOutput((H=init_h, rH=zero(init_h)); 
 output = GtkOutput((H=init_h, rH=zero(init_h)); 
     ruleset=host_ruleset,
     aux=auxdata, mask=mask,
@@ -42,7 +36,6 @@ sim!(output, (growth, wind, localdisp, allee, viewer))
 
 host_para_ruleset = Ruleset(wind, localdisp, growth, allee, localdisp_p, allee_p, parasitism)
 
-# output = ElectronOutput(initdata;
 output = GtkOutput((; H=init_h, P=init_p),
     filename="output/hostparasite.gif", 
     ruleset=host_para_ruleset,
