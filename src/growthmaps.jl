@@ -42,7 +42,7 @@ host_model = Model(Layer(:tavg, u"°C", host_growth))
 para_model = Model(Layer(:tavg, u"°C", para_growth))
 
 # Download and set up the WorldClim Climate data series
-ser = series(WorldClim{Climate}, :tavg; month=1:12)
+ser = GeoSeries(WorldClim{Climate}, :tavg; month=1:12)
 # Run for 12 months
 @time rates = mapgrowth((host=host_model, para=para_model); series=ser, tspan=1:12)
 
@@ -52,8 +52,8 @@ parapath = joinpath(basedir, "data/growthrates/parasitoid")
 mkpath(parapath)
 mkpath(hostpath)
 for t in 1:12
-    write(joinpath(hostpath, "$(lpad(t, 2, '0')).tif"), GDALarray, rates[:host][Ti(t)])
-    write(joinpath(parapath, "$(lpad(t, 2, '0')).tif"), GDALarray, rates[:para][Ti(t)])
+    write(joinpath(hostpath, "$(lpad(t, 2, '0')).tif"), rates[:host][Ti(t)])
+    write(joinpath(parapath, "$(lpad(t, 2, '0')).tif"), rates[:para][Ti(t)])
 end
 
 
@@ -63,7 +63,7 @@ using Shapefile, Plots, Colors, ColorSchemes
 using Plots: px
 
 # Plot setup
-aus = Lon(Between(113.0, 154.0)), Lat(Between(-44.0, -10.0))
+aus = X(Between(113.0, 154.0)), Y(Between(-44.0, -10.0))
 shp = Shapefile.Handle(joinpath(basedir, "data", "ausborder_polyline.shp"))
 shape_opts = (lw=0.5, color=RGB(0.3))
 plot_opts = (; 

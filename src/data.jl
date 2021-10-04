@@ -1,8 +1,6 @@
 using GeoData, ArchGDAL, Dates, Pkg
 
 function load_data(basedir, carrycap)
-    # Defined elsewhere but add here if this is run first
-    carrycap = isdefined(Main, :carrycap) ? carrycap : 1f9
     # The directory for this project
     basedir = dirname(Pkg.project().path)
     # Load growthrates from tif files saved in growthmaps.jl
@@ -11,12 +9,12 @@ function load_data(basedir, carrycap)
     # for years before or after this period.
     growthtimespan = DateTime(2020, 1):Month(1):DateTime(2020, 12)
     # Load, cut out Australia, and reorient the growth rate data
-    aus = Lon(Between(113.0, 154.0)), Lat(Between(-44.0, -10.0))
+    aus = X(Between(113.0, 154.0)), Y(Between(-44.0, -10.0))
     rate_h, rate_p = map((:host, :parasitoid)) do species
         slices = map(readdir(joinpath(datapath, string(species)); join=true)) do path
-            GDALarray(path; mappedcrs=EPSG(4326))[aus..., Band(1)] |>
+            GeoArray(path; mappedcrs=EPSG(4326))[aus..., Band(1)] |>
                 a -> replace_missing(a, 0.0f0) |>
-                a -> permutedims(a, (Lat, Lon))
+                a -> permutedims(a, (Y, X))
         end
         A = cat(slices...; dims=Ti(growthtimespan))
     end
@@ -30,7 +28,7 @@ function load_data(basedir, carrycap)
     # Create an initial population array for the host
     init_h = zero(A)
     # Add a host population around Cairns in Queensland
-    cairns = Lat(Between(-17, -20)), Lon(Between(144.0, 145.0))
+    cairns = Y(Between(-17, -20)), X(Between(144.0, 145.0))
     init_h[cairns...] .= carrycap
 
     # Initialise scattered parasitoid populations

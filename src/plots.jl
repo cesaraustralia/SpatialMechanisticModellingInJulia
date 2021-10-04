@@ -45,10 +45,12 @@ tspan = DateTime(2020, 1):Day(7):DateTime(2030, 1)
 kw = (; 
     aux=auxdata, mask=mask, tspan=tspan
 )
+# Define outputs
 wind_output = ArrayOutput(initdata; kw...)
 localdisp_output = ArrayOutput(initdata; kw...)
 combined_output = ArrayOutput(initdata; kw...)
 host_para_output = ArrayOutput(initdata; kw...)
+# Run simulations
 sim!(wind_output, wind, allee, growth)
 sim!(localdisp_output, localdisp, allee, growth)
 sim!(combined_output, localdisp, wind, allee, growth)
@@ -56,6 +58,7 @@ sim!(host_para_output, localdisp, wind, allee, growth, localdisp_p, allee_p, par
 
 # Default map options
 simplot_opts = (; 
+    color=:inferno,
     clims=(0, carrycap),
     legend=:none,
     showaxis=false,
@@ -87,7 +90,7 @@ col_p = cgrad(ColorSchemes.diverging_linear_bjr_30_55_c53_n256)
 no_x = (xguide="", xtickfontcolor=RGB(1.0))
 hp1, hp2, hp3 = map((t1, t2, t3), (no_x, no_x, ())) do t, kw
     hp = Plots.plot(host_para_output[Ti(Near(t))][:H]; xguide="Host", hp_plot_opts..., kw..., yguide=year(t)),
-         Plots.plot(host_para_output[Ti(Near(t))][:P]; color=col_p, xguide="Parasitoid", hp_plot_opts..., ytickfontcolor=RGB(1.0), kw...)
+         Plots.plot(host_para_output[Ti(Near(t))][:P]; xguide="Parasitoid", hp_plot_opts..., ytickfontcolor=RGB(1.0), kw..., color=:cividis)
     map(x -> Plots.plot!(x, shp; shape_opts...), hp)
 end
 host_para_plot = Plots.plot(hp1..., hp2..., hp3...; layout=(3, 2), size=(900, 900))
