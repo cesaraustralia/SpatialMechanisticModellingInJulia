@@ -1,4 +1,4 @@
-using GeoData, ArchGDAL, Dates, Pkg
+using Rasters, ArchGDAL, Dates, Pkg
 
 function load_data(basedir, carrycap)
     # The directory for this project
@@ -12,7 +12,7 @@ function load_data(basedir, carrycap)
     aus = X(Between(113.0, 154.0)), Y(Between(-44.0, -10.0))
     rate_h, rate_p = map((:host, :parasitoid)) do species
         slices = map(readdir(joinpath(datapath, string(species)); join=true)) do path
-            GeoArray(path; mappedcrs=EPSG(4326))[aus..., Band(1)] |>
+            Raster(path; mappedcrs=EPSG(4326))[aus..., Band(1)] |>
                 a -> replace_missing(a, 0.0f0) |>
                 a -> permutedims(a, (Y, X))
         end

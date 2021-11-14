@@ -10,18 +10,15 @@ struct Parasitism{R,W,GR,M,HS,A,B} <: CellRule{R,W}
 end
 
 function Dispersal.applyrule(data, rule::Parasitism, (H, P), I)
-    # Parameters
     γ = rule.mortality; halfsat = rule.halfsat; a = rule.a; b = rule.b
-    # Parasite maximum growth rate for this cell, may vary spatially
-    rP = get(data, rule.rate, I...) * 7
-    # Equation
-    h = 1 / (a * exp(b * rP))
+    rP = get(data, rule.rate, I) * 7 # Growthrate for the cell/timestep
+    h = 1 / (a * exp(b * rP)) # Handling time
     β = 1 / (h * halfsat) # Encounter rate
     R = β * H / (1 + h * β * H) # Holling type II response
-    δ = h * (rP - γ)
-    dHdt = -R * P
-    dPdt = δ * R * P * rP - γ * P
-    return H + dHdt, P + dPdt
+    δ = h * (rP - γ) # Conversion efficiency
+    dHdt = -R * P # Change in host population
+    dPdt = δ * R * P * rP - γ * P # Change in parasitoid population
+    return (H + dHdt, P + dPdt) # Updated populations for the cell
 end
 
 function define_rules()
@@ -49,8 +46,8 @@ function define_rules()
         dest = I .+ (rand(-20:20), rand(-20:20))
         if isinbounds(data, dest)
             # Update dest cell and current cell, if dest is on the grid
-            @inbounds add!(data[:H], H / 10, dest...)
-            @inbounds sub!(data[:H], H / 10, I...)
+            add!(data[:H], H / 10, dest...)
+            sub!(data[:H], H / 10, I...)
         end
         return nothing
     end

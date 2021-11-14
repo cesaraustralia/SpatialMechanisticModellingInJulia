@@ -1,6 +1,6 @@
 #### Simple growth-rate model #####################
 
-using GrowthMaps, ArchGDAL, GeoData, RasterDataSources, Dates, Unitful, Plots, Pkg
+using GrowthMaps, ArchGDAL, Rasters, RasterDataSources, Dates, Unitful, Plots, Pkg
 
 basedir = dirname(Pkg.project().path)
 
@@ -42,15 +42,16 @@ host_model = Model(Layer(:tavg, u"°C", host_growth))
 para_model = Model(Layer(:tavg, u"°C", para_growth))
 
 # Download and set up the WorldClim Climate data series
-ser = GeoSeries(WorldClim{Climate}, :tavg; month=1:12)
+monthser = RasterSeries(WorldClim{Climate}, (:tavg,); month=1:12) 
+ser = set(monthser, :month => Ti)
 # Run for 12 months
 @time rates = mapgrowth((host=host_model, para=para_model); series=ser, tspan=1:12)
 
 # Save tifs for each layer
 hostpath = joinpath(basedir, "data/growthrates/host")
 parapath = joinpath(basedir, "data/growthrates/parasitoid")
-mkpath(parapath)
-mkpath(hostpath)
+mkpath(parapath); mkpath(hostpath)
+
 for t in 1:12
     write(joinpath(hostpath, "$(lpad(t, 2, '0')).tif"), rates[:host][Ti(t)])
     write(joinpath(parapath, "$(lpad(t, 2, '0')).tif"), rates[:para][Ti(t)])

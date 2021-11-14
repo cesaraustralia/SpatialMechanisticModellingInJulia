@@ -1,5 +1,6 @@
-using BenchmarkTools, Plots, CUDAKernels, CUDA, Random, Pkg, Adapt
+using Pkg, Random, CUDAKernels, Adapt, CUDA, Rasters, BenchmarkTools, Plots
 using DynamicGrids: CuGPU, CPU, GPU, SimData
+using Rasters.LookupArrays
 using Plots: px
 theme(:vibrant)
 CUDA.allowscalar(false)
@@ -30,10 +31,10 @@ gpu_wind = SetNeighbors{Tuple{:rand,:H}}() do data, hood, (rand, H), I
                  unsafe_trunc(Int, data[:rand][randj...] * 40 - 20))
     # Update spotted cell if it's on the grid
     if isinbounds(data[:H], dest)
-        @inbounds add!(data[:H], H / 10, dest...)
-        @inbounds sub!(data[:H], H / 10, I...)
+        add!(data[:H], H, dest...)
+        sub!(data[:H], H, I...)
     end
-    nothing
+    return nothing
 end
 
 _rand!(A) = rand!(A)
@@ -103,14 +104,16 @@ end
 ##### Scenarios and benchmark #####
 
 procs = (single=SingleCPU(), threaded=ThreadedCPU(), gpu=CuGPU(),)
+procs = (gpu=CuGPU(),)
 opts = (noopt=NoOpt(), sparseopt=SparseOpt())
-# We use a an anonymous function to scale a 200*200 array to the specified size
+opts = (noopt=NoOpt(), )
+# We use a an anonymous function 
 sizes = (
-    100 => A -> aggregate(Center(), A, (Lat(2), Lon(2), Ti(1))),
+    100 => A -> aggregate(Center(), A, (Y(2), X(2), Ti(1))),
     200 => A -> A,
-    400 => A -> disaggregate(Center(), A, (Lat(2), Lon(2), Ti(1))),
-    800 => A -> disaggregate(Center(), A, (Lat(4), Lon(4), Ti(1))),
-    1600 => A -> disaggregate(Center(), A, (Lat(8), Lon(8), Ti(1))),
+    400 => A -> disaggregate(Center(), A, (Y(2), X(2), Ti(1))),
+    800 => A -> disaggregate(Center(), A, (Y(4), X(4), Ti(1))),
+    1600 => A -> disaggregate(Center(), A, (Y(8), X(8), Ti(1))),
 )
 
 # CPU/GPU rules are separated as the best optimisations are not the same on CPU and GPU.
@@ -118,7 +121,7 @@ sizes = (
 # in a GridRule on a separate grid, due to the current lack of a `rand` function
 # inside GPU kernels.
 rulegroups = (
-    Wind=(cpu=(wind, allee, growth), gpu=(randomgrid, gpu_wind, allee, growth)),
+    Wind=(cpu=(wind, allee, growth), gpu=(randomgrid, gpu_wind, growth, allee)),
     Local=(cpu=(localdisp, allee, growth), gpu=(localdisp, allee, growth)),
     Combined=(cpu=(wind, localdisp, allee, growth), gpu=(randomgrid, gpu_wind, localdisp, allee, growth)),
     Parasitism=(cpu=(wind, localdisp, growth, allee, localdisp_p, allee_p, parasitism),
@@ -126,7 +129,7 @@ rulegroups = (
 )
 
 suites = map(suite, rulegroups)
-map(tune!, suites)
+# map(tune!, suites)
 results = map(su -> run(su, verbose=true), suites)
 
 ##### Benchmark plot #####
@@ -178,3 +181,31 @@ end
 plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 600))
 
 savefig("output/benchmarks.png")
+
+
+init = rand(Bool, 150, 200)
+
+# Or define it from scratch (yes this is actually the whole implementation!)
+life = Neighbors(Moore(1)) do data, hood, state, I
+    born_survive = (false, false, false, true, false, false, false, false, false), 
+                   (false, false, true, true,  false, false, false, false, false)
+    born_survive[state + 1][sum(hood) + 1]
+end
+output = ResultOutput(init; tspan=1:100)
+sim!(output, life; proc=CuGPU())
+
+
+using DynamicGrids, CUDAKernels, BenchmarkTools
+using CUDAKernels, CUDA
+const DEAD, ALIVE, BURNING = 1, 2, 3
+
+randomiser = SetGrid{Tuple{},:rand}() do randgrid
+    CUDA.rand!(parent(randgrid))
+end
+setneighbors_gpu = SetNeighbors{Tuple{:ff,:rand},:ff}(Moore(1)) do data, neighborhood, (cell, rand), I
+    add!(data[:ff], 1.0f0, I...)
+end
+
+init = fill(1.0f0, 400, 400)
+bench_output_rand = ResultOutput((ff=init, rand=zeros(size(init))); tspan=1:200)
+sim!(bench_output_rand, setneighbors_gpu; proc=CuGPU());
