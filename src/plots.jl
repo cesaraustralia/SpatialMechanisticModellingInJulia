@@ -75,7 +75,7 @@ p5 = Plots.plot(combined_output[t][:H]; xguide="Combined", simplot_opts...)
 map(p -> Plots.plot!(p, shp; shape_opts...), (p3, p4, p5))
 simplots = Plots.plot(p3, p4, p5; layout=(1, 3), size=(900, 300))
 
-savefig(joinpath(basedir, "output", "simplots.png"))
+savefig(joinpath(basedir, "output", "simplots.pdf"))
 
 #### Host/Parasitoid simulation plots #############################
 
@@ -95,4 +95,4 @@ hp1, hp2, hp3 = map((t1, t2, t3), (no_x, no_x, ())) do t, kw
 end
 host_para_plot = Plots.plot(hp1..., hp2..., hp3...; layout=(3, 2), size=(900, 900))
 
-savefig(joinpath(basedir, "output", "hostparaplots.png"))
+savefig(joinpath(basedir, "output", "hostparaplots.pdf"))

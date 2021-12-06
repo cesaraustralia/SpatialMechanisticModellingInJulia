@@ -1,3 +1,5 @@
+#!!!! Run this script twice! the first run includes gpu compilation
+
 using Pkg, Random, CUDAKernels, Adapt, CUDA, Rasters, BenchmarkTools, Plots
 using DynamicGrids: CuGPU, CPU, GPU, SimData
 using Rasters.LookupArrays
@@ -41,7 +43,7 @@ _rand!(A) = rand!(A)
 _rand!(A::CuArray) = CUDA.rand!(A)
 
 # A rule that just fills the random grid
-randomgrid = SetGrid{Tuple{},:rand}() do randgrid
+randomiser = SetGrid{Tuple{},:rand}() do randgrid
     # `parent` is so we write rand to the whole grid, including any padding
     _rand!(parent(randgrid))
 end
@@ -49,7 +51,7 @@ end
 
 ##### Benchmark setup methods #####
 
-function setupsim(rules;
+function setupsim(rules::NamedTuple;
     tspan=DateTime(2020, 1):Week(1):DateTime(2022, 1),
     opt=NoOpt(), proc=SingleCPU(), size_ag,
     growthmin=-5.0f0, growthmax=0.2f0,
@@ -62,8 +64,8 @@ function setupsim(rules;
     hpop = ag(init_h[ax...])
     @assert size(hpop, 1) == size(hpop, 2) == sze
     init = (;
-        H=ag(init_h[ax...]),
-        P=ag(init_p[ax...]),
+        H=parent(ag(init_h[ax...])),
+        P=parent(ag(init_p[ax...])),
         rand=rand(Float32, sze, sze)
     )
     o = output_type(init;
@@ -94,7 +96,7 @@ function suite(rules)
         for proc in keys(procs), s in sizes
             # SparseOpt is not implemented for GPU yet
             proc == :gpu && opt == :sparseopt && continue
-            suite[opt][proc, first(s)] = @benchmarkable sim!(o, rs; simdata=sd) setup=((o, rs, sd)=setupsim($rules; size_ag=$s, proc=$(procs[proc]), opt=$(opts[opt])))
+            suite[opt][proc, first(s)] = @benchmarkable sim!(o, rs) setup=((o, rs, sd)=setupsim($rules; size_ag=$s, proc=$(procs[proc]), opt=$(opts[opt])))
         end
     end
     suite
@@ -104,9 +106,7 @@ end
 ##### Scenarios and benchmark #####
 
 procs = (single=SingleCPU(), threaded=ThreadedCPU(), gpu=CuGPU(),)
-procs = (gpu=CuGPU(),)
 opts = (noopt=NoOpt(), sparseopt=SparseOpt())
-opts = (noopt=NoOpt(), )
 # We use a an anonymous function 
 sizes = (
     100 => A -> aggregate(Center(), A, (Y(2), X(2), Ti(1))),
@@ -121,11 +121,11 @@ sizes = (
 # in a GridRule on a separate grid, due to the current lack of a `rand` function
 # inside GPU kernels.
 rulegroups = (
-    Wind=(cpu=(wind, allee, growth), gpu=(randomgrid, gpu_wind, growth, allee)),
+    Wind=(cpu=(wind, allee, growth), gpu=(randomiser, gpu_wind, allee, growth)),
     Local=(cpu=(localdisp, allee, growth), gpu=(localdisp, allee, growth)),
-    Combined=(cpu=(wind, localdisp, allee, growth), gpu=(randomgrid, gpu_wind, localdisp, allee, growth)),
+    Combined=(cpu=(wind, localdisp, allee, growth), gpu=(randomiser, gpu_wind, localdisp, allee, growth)),
     Parasitism=(cpu=(wind, localdisp, growth, allee, localdisp_p, allee_p, parasitism),
-                gpu=(randomgrid, gpu_wind, localdisp, localdisp_p, Chain(allee, growth, allee_p, parasitism))),
+                gpu=(randomiser, gpu_wind, localdisp, localdisp_p, Chain(allee, growth, allee_p, parasitism))),
 )
 
 suites = map(suite, rulegroups)
@@ -180,32 +180,4 @@ function plotbench(b, key)
 end
 plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 600))
 
-savefig("output/benchmarks.png")
-
-
-init = rand(Bool, 150, 200)
-
-# Or define it from scratch (yes this is actually the whole implementation!)
-life = Neighbors(Moore(1)) do data, hood, state, I
-    born_survive = (false, false, false, true, false, false, false, false, false), 
-                   (false, false, true, true,  false, false, false, false, false)
-    born_survive[state + 1][sum(hood) + 1]
-end
-output = ResultOutput(init; tspan=1:100)
-sim!(output, life; proc=CuGPU())
-
-
-using DynamicGrids, CUDAKernels, BenchmarkTools
-using CUDAKernels, CUDA
-const DEAD, ALIVE, BURNING = 1, 2, 3
-
-randomiser = SetGrid{Tuple{},:rand}() do randgrid
-    CUDA.rand!(parent(randgrid))
-end
-setneighbors_gpu = SetNeighbors{Tuple{:ff,:rand},:ff}(Moore(1)) do data, neighborhood, (cell, rand), I
-    add!(data[:ff], 1.0f0, I...)
-end
-
-init = fill(1.0f0, 400, 400)
-bench_output_rand = ResultOutput((ff=init, rand=zeros(size(init))); tspan=1:200)
-sim!(bench_output_rand, setneighbors_gpu; proc=CuGPU());
+savefig("output/benchmarks.pdf")

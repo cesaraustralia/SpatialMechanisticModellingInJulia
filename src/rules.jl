@@ -41,9 +41,13 @@ function define_rules()
     ### Wind dispersal rule ###############################
     wind = SetCell{:H}() do data, H, I 
         H > zero(H) || return nothing # Ignore empty cells
-        rand() < 0.01f0 || return nothing # Randomise a dispersal event
+        rand(Float32) < 0.01f0 || return nothing # Randomise a dispersal event
         # Randomise a destination
-        dest = I .+ (rand(-20:20), rand(-20:20))
+        # Need to do this a little more manually than in the paper
+        # for GPU compat
+        # dest = I .+ (rand(-20:20), rand(-20:20))
+        dest = I .+ (unsafe_trunc(Int, rand(Float32) * 40 - 20),
+                     unsafe_trunc(Int, rand(Float32) * 40 - 20))
         if isinbounds(data, dest)
             # Update dest cell and current cell, if dest is on the grid
             add!(data[:H], H / 10, dest...)
