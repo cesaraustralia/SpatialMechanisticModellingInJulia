@@ -11,6 +11,7 @@ basedir = dirname(Pkg.project().path)
 # Inlude models and data scripts
 include(joinpath(basedir, "src", "rules.jl"))
 include(joinpath(basedir, "src", "data.jl"))
+mkpath(joinpath(basedir, "output"))
 
 # Define rules and simulation data
 growth, allee, localdisp, wind, parasitism, localdisp_p, allee_p, carrycap = define_rules()
@@ -178,6 +179,6 @@ function plotbench(b, key)
         ylabel=(key in (:Wind, :Combined) ? "Time in seconds" : ""),
     )
 end
-plot(map(plotbench, results, keys(results))...; layout=(2, 2), size=(530, 600))
+plot(map(plotbench, results, keys(results))...; dpi=600, layout=(2, 2), size=(530, 600))
 
-savefig("output/benchmarks.pdf")
+savefig("output/benchmarks.png")
